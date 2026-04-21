@@ -1,8 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 const API_BASE_URL = process.env.API_BASE_URL;
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     if (!API_BASE_URL) {
       return NextResponse.json(
@@ -11,7 +11,15 @@ export async function GET() {
       );
     }
 
-    const response = await fetch(`${API_BASE_URL}/blog-posts/public?limit=100`, {
+    const page = request.nextUrl.searchParams.get("page") ?? "1";
+    const limit = request.nextUrl.searchParams.get("limit") ?? "20";
+    const sourceId = request.nextUrl.searchParams.get("sourceId");
+    const query = new URLSearchParams({ page, limit });
+    if (sourceId) {
+      query.set("sourceId", sourceId);
+    }
+
+    const response = await fetch(`${API_BASE_URL}/blog-posts/public?${query.toString()}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",

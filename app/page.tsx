@@ -8,6 +8,8 @@ type BlogSource = {
   url: string;
   iconUrl: string | null;
   isActive?: boolean;
+  postCount?: number;
+  newPostCount?: number;
 };
 
 type FeedPost = {
@@ -21,13 +23,24 @@ type FeedPost = {
   isNew: boolean;
 };
 
+type FeedPostsResponse = {
+  items: Omit<FeedPost, "isNew">[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+};
+
 export default function HomePage() {
+  const pageSize = 20;
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [sources, setSources] = useState<BlogSource[]>([]);
   const [selectedSourceId, setSelectedSourceId] = useState<number | null>(null);
   const [sourceSearchQuery, setSourceSearchQuery] = useState("");
   const [subscribedSourceIds, setSubscribedSourceIds] = useState<number[]>([]);
   const [isSourcesExpanded, setIsSourcesExpanded] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [pendingSubscriptionSourceId, setPendingSubscriptionSourceId] = useState<
     number | null
   >(null);
@@ -35,14 +48,13 @@ export default function HomePage() {
   const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchSourcesAndSubscriptions = async () => {
       setIsLoading(true);
       setErrorMessage("");
 
       try {
         const accessToken = localStorage.getItem("accessToken");
-        const [postsResponse, sourcesResponse, subscriptionsResponse] = await Promise.all([
-          fetch("/api/feed/posts", { cache: "no-store" }),
+        const [sourcesResponse, subscriptionsResponse] = await Promise.all([
           fetch("/api/blog-sources", { cache: "no-store" }),
           accessToken
             ? fetch("/api/blog-subscriptions", {
@@ -55,11 +67,6 @@ export default function HomePage() {
             : Promise.resolve(null),
         ]);
 
-        const postsResult:
-          | Omit<FeedPost, "isNew">[]
-          | {
-              message?: string;
-            } = await postsResponse.json();
         const sourcesResult: BlogSource[] | { message?: string } =
           await sourcesResponse.json();
         let subscribedSourceIdsResult: number[] = [];
@@ -87,14 +94,6 @@ export default function HomePage() {
           }
         }
 
-        if (!postsResponse.ok || !Array.isArray(postsResult)) {
-          const message =
-            !Array.isArray(postsResult) && typeof postsResult.message === "string"
-              ? postsResult.message
-              : "피드를 불러오지 못했습니다.";
-          throw new Error(message);
-        }
-
         if (!sourcesResponse.ok || !Array.isArray(sourcesResult)) {
           const message =
             !Array.isArray(sourcesResult) && typeof sourcesResult.message === "string"
@@ -102,16 +101,6 @@ export default function HomePage() {
               : "블로그 목록을 불러오지 못했습니다.";
           throw new Error(message);
         }
-
-        const nowMs = Date.now();
-        const nextPosts = postsResult.map((post) => ({
-          ...post,
-          isNew: post.publishedAt
-            ? nowMs - new Date(post.publishedAt).getTime() <= 3 * 24 * 60 * 60 * 1000
-            : false,
-        }));
-
-        setPosts(nextPosts);
         setSources(sourcesResult);
         setSubscribedSourceIds(subscribedSourceIdsResult);
       } catch (error) {
@@ -125,27 +114,73 @@ export default function HomePage() {
       }
     };
 
-    void fetchData();
+    void fetchSourcesAndSubscriptions();
   }, []);
 
-  const filteredPosts = selectedSourceId
-    ? posts.filter((post) => post.source.id === selectedSourceId)
-    : posts;
-  const sourceHasNewMap = new Map<number, boolean>();
-  const sourcePostCountMap = new Map<number, number>();
-  posts.forEach((post) => {
-    if (post.isNew) {
-      sourceHasNewMap.set(post.source.id, true);
-    }
-    sourcePostCountMap.set(
-      post.source.id,
-      (sourcePostCountMap.get(post.source.id) ?? 0) + 1,
-    );
-  });
+  useEffect(() => {
+    const fetchPosts = async () => {
+      setIsLoading(true);
+      setErrorMessage("");
+
+      try {
+        const query = new URLSearchParams({
+          page: String(currentPage),
+          limit: String(pageSize),
+        });
+        if (selectedSourceId) {
+          query.set("sourceId", String(selectedSourceId));
+        }
+
+        const postsResponse = await fetch(`/api/feed/posts?${query.toString()}`, {
+          cache: "no-store",
+        });
+        const postsResult: FeedPostsResponse | { message?: string } =
+          await postsResponse.json();
+
+        if (
+          !postsResponse.ok ||
+          !("items" in postsResult) ||
+          !Array.isArray(postsResult.items)
+        ) {
+          const message =
+            "message" in postsResult && typeof postsResult.message === "string"
+              ? postsResult.message
+              : "피드를 불러오지 못했습니다.";
+          throw new Error(message);
+        }
+
+        const nowMs = Date.now();
+        const nextPosts = postsResult.items.map((post) => ({
+          ...post,
+          isNew: post.publishedAt
+            ? nowMs - new Date(post.publishedAt).getTime() <= 3 * 24 * 60 * 60 * 1000
+            : false,
+        }));
+
+        setPosts(nextPosts);
+        setTotalPages(postsResult.totalPages);
+      } catch (error) {
+        if (error instanceof Error) {
+          setErrorMessage(error.message);
+        } else {
+          setErrorMessage("피드 조회 중 알 수 없는 오류가 발생했습니다.");
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    void fetchPosts();
+  }, [currentPage, selectedSourceId]);
+
   const selectedSource =
     selectedSourceId === null
       ? null
       : sources.find((source) => source.id === selectedSourceId) ?? null;
+  const totalCollectedPostsCount = sources.reduce(
+    (sum, source) => sum + (source.postCount ?? 0),
+    0,
+  );
   const activeSourcesCount = sources.filter((source) => source.isActive !== false).length;
   const normalizedSourceSearchQuery = sourceSearchQuery.trim().toLowerCase();
   const searchedSources =
@@ -218,10 +253,10 @@ export default function HomePage() {
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
             <span className="rounded-full bg-zinc-100 px-2.5 py-1 font-semibold text-zinc-700">
-              수집 글 {posts.length}개
+              수집글 총 {totalCollectedPostsCount}개
             </span>
             <span className="rounded-full bg-sky-100 px-2.5 py-1 font-semibold text-sky-800">
-              수집중 블로그 {activeSourcesCount}개
+              수집중 블로그 총 {activeSourcesCount}개
             </span>
           </div>
           <div className="mt-4">
@@ -257,7 +292,10 @@ export default function HomePage() {
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             <button
               type="button"
-              onClick={() => setSelectedSourceId(null)}
+              onClick={() => {
+                setSelectedSourceId(null);
+                setCurrentPage(1);
+              }}
               className={`flex min-h-14 items-center gap-2 rounded-xl border px-3 py-2 text-left text-xs font-semibold transition ${
                 selectedSourceId === null
                   ? "border-sky-300 bg-sky-100 text-sky-800 shadow-sm"
@@ -269,7 +307,7 @@ export default function HomePage() {
               </span>
               <span className="line-clamp-2">전체 블로그 보기</span>
               <span className="ml-auto shrink-0 rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-bold text-zinc-700">
-                {posts.length}
+                {totalCollectedPostsCount}
               </span>
             </button>
               {visibleSources.map((source) => {
@@ -280,9 +318,11 @@ export default function HomePage() {
                     <button
                       type="button"
                       onClick={() =>
-                        setSelectedSourceId((prevId) =>
-                          prevId === source.id ? null : source.id,
-                        )
+                        setSelectedSourceId((prevId) => {
+                          const nextId = prevId === source.id ? null : source.id;
+                          setCurrentPage(1);
+                          return nextId;
+                        })
                       }
                       className={`flex min-h-14 w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-xs font-semibold transition ${
                         selectedSourceId === source.id
@@ -309,13 +349,13 @@ export default function HomePage() {
                         {source.name && source.name.trim() ? source.name : source.url}
                       </span>
                       <span className="ml-auto flex shrink-0 items-center gap-1">
-                        {sourceHasNewMap.get(source.id) && (
+                        {(source.newPostCount ?? 0) > 0 && (
                           <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
                             NEW
                           </span>
                         )}
                         <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-bold text-zinc-700">
-                          {sourcePostCountMap.get(source.id) ?? 0}
+                          {source.postCount ?? 0}
                         </span>
                       </span>
                     </button>
@@ -378,7 +418,7 @@ export default function HomePage() {
 
         {!isLoading && !errorMessage && (
           <div className="grid gap-4 md:grid-cols-2">
-            {filteredPosts.map((post) => (
+            {posts.map((post) => (
               <article key={post.id} className="rounded-2xl bg-white p-5 shadow-sm">
                 <div className="flex items-center gap-2">
                   {post.source.iconUrl ? (
@@ -432,11 +472,36 @@ export default function HomePage() {
                 </p>
               </article>
             ))}
-            {filteredPosts.length === 0 && (
+            {posts.length === 0 && (
               <div className="rounded-2xl bg-white p-6 text-sm text-zinc-500 shadow-sm">
                 선택한 블로그에 수집된 포스트가 없습니다.
               </div>
             )}
+          </div>
+        )}
+        {!isLoading && !errorMessage && totalPages > 1 && (
+          <div className="mt-6 flex items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              이전
+            </button>
+            <span className="text-sm font-medium text-zinc-600">
+              {currentPage} / {totalPages}
+            </span>
+            <button
+              type="button"
+              onClick={() =>
+                setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+              }
+              disabled={currentPage === totalPages}
+              className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              다음
+            </button>
           </div>
         )}
       </section>
