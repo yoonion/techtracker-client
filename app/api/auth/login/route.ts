@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
     const result = (await response.json()) as {
       accessToken?: string;
       refreshToken?: string;
+      name?: string;
       message?: string | string[];
     };
 
@@ -43,6 +44,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       accessToken: result.accessToken,
       refreshToken: result.refreshToken,
+      name: result.name,
     });
   } catch {
     return NextResponse.json(

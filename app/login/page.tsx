@@ -2,23 +2,24 @@
 
 import Link from "next/link";
 import { FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
 
 type LoginResponse = {
   accessToken: string;
   refreshToken: string;
+  name: string;
 };
 
 export default function LoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setErrorMessage("");
-    setSuccessMessage("");
     setIsLoading(true);
 
     try {
@@ -32,7 +33,12 @@ export default function LoginPage() {
 
       const result: LoginResponse | { message?: string } = await response.json();
 
-      if (!response.ok || !("accessToken" in result) || !("refreshToken" in result)) {
+      if (
+        !response.ok ||
+        !("accessToken" in result) ||
+        !("refreshToken" in result) ||
+        !("name" in result)
+      ) {
         const message =
           "message" in result && typeof result.message === "string"
             ? result.message
@@ -42,8 +48,9 @@ export default function LoginPage() {
 
       localStorage.setItem("accessToken", result.accessToken);
       localStorage.setItem("refreshToken", result.refreshToken);
-      setSuccessMessage("로그인 성공! 토큰이 저장되었습니다.");
+      localStorage.setItem("userName", result.name);
       setPassword("");
+      router.push("/");
     } catch (error) {
       if (error instanceof Error) {
         setErrorMessage(error.message);
@@ -102,7 +109,6 @@ export default function LoginPage() {
         </form>
 
         {errorMessage && <p className="mt-4 text-sm text-red-600">{errorMessage}</p>}
-        {successMessage && <p className="mt-4 text-sm text-emerald-600">{successMessage}</p>}
 
         <div className="mt-6 border-t border-zinc-200 pt-4 space-y-2">
           <Link
