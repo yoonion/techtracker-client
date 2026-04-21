@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 type BlogSource = {
   id: number;
+  name: string | null;
   url: string;
 };
 
@@ -83,7 +84,11 @@ export default function HomePage() {
           <div className="grid gap-4 md:grid-cols-2">
             {posts.map((post) => (
               <article key={post.id} className="rounded-2xl bg-white p-5 shadow-sm">
-                <p className="text-xs text-zinc-500">{post.source.url}</p>
+                <p className="text-xs text-zinc-500">
+                  {post.source.name && post.source.name.trim()
+                    ? post.source.name
+                    : post.source.url}
+                </p>
                 <h2 className="mt-2 line-clamp-2 text-lg font-semibold text-zinc-900">
                   {post.title}
                 </h2>

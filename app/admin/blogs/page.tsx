@@ -4,6 +4,7 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 
 type BlogSource = {
   id: number;
+  name: string | null;
   url: string;
   rssUrl: string | null;
   isActive: boolean;
@@ -12,10 +13,12 @@ type BlogSource = {
 };
 
 export default function AdminBlogsPage() {
+  const [name, setName] = useState("");
   const [url, setUrl] = useState("");
   const [sources, setSources] = useState<BlogSource[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
@@ -80,7 +83,7 @@ export default function AdminBlogsPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${accessToken}`,
         },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ name, url }),
       });
       const result: BlogSource | { message?: string } = await response.json();
 
@@ -92,6 +95,7 @@ export default function AdminBlogsPage() {
         throw new Error(message);
       }
 
+      setName("");
       setUrl("");
       setSuccessMessage("블로그가 등록되었습니다.");
       void fetchSources();
@@ -148,6 +152,53 @@ export default function AdminBlogsPage() {
     }
   };
 
+  const handleDelete = async (source: BlogSource) => {
+    const confirmed = window.confirm(
+      `정말 삭제할까요?\n삭제 대상: ${source.url}\n삭제 후 복구할 수 없습니다.`,
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingId(source.id);
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    try {
+      const accessToken = localStorage.getItem("accessToken");
+      if (!accessToken) {
+        throw new Error("로그인이 필요합니다.");
+      }
+
+      const response = await fetch(`/api/admin/blog-sources/${source.id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      const result: { message?: string } = await response.json();
+      if (!response.ok) {
+        const message =
+          typeof result.message === "string"
+            ? result.message
+            : "블로그 삭제에 실패했습니다.";
+        throw new Error(message);
+      }
+
+      setSources((prev) => prev.filter((item) => item.id !== source.id));
+      setSuccessMessage("블로그가 삭제되었습니다.");
+    } catch (error) {
+      if (error instanceof Error) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage("삭제 중 알 수 없는 오류가 발생했습니다.");
+      }
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   return (
     <main className="rounded-2xl bg-white p-6 shadow-sm">
       <h1 className="text-2xl font-bold text-zinc-900">블로그 관리</h1>
@@ -156,6 +207,14 @@ export default function AdminBlogsPage() {
       </p>
 
       <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-3 sm:flex-row">
+        <input
+          type="text"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          placeholder="블로그 이름 (예: Naver D2)"
+          required
+          className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none transition focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200"
+        />
         <input
           type="url"
           value={url}
@@ -176,22 +235,24 @@ export default function AdminBlogsPage() {
       {errorMessage && <p className="mt-4 text-sm text-red-600">{errorMessage}</p>}
       {successMessage && <p className="mt-4 text-sm text-emerald-600">{successMessage}</p>}
 
-      <div className="mt-6 overflow-x-auto rounded-xl border border-zinc-200">
-        <table className="w-full min-w-[780px] text-left text-sm">
+      <div className="mt-6 rounded-xl border border-zinc-200">
+        <table className="w-full table-fixed text-left text-sm">
           <thead className="bg-zinc-50 text-zinc-700">
             <tr>
               <th className="px-4 py-3 font-semibold">ID</th>
+              <th className="px-4 py-3 font-semibold">블로그 이름</th>
               <th className="px-4 py-3 font-semibold">블로그 URL</th>
               <th className="px-4 py-3 font-semibold">RSS 경로</th>
               <th className="px-4 py-3 font-semibold">등록일</th>
               <th className="px-4 py-3 font-semibold">마지막 수집일</th>
               <th className="px-4 py-3 font-semibold">수집 상태</th>
+              <th className="px-4 py-3 font-semibold">관리</th>
             </tr>
           </thead>
           <tbody>
             {isLoading && (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-zinc-500">
+                <td colSpan={8} className="px-4 py-6 text-center text-zinc-500">
                   블로그 목록을 불러오는 중...
                 </td>
               </tr>
@@ -201,8 +262,11 @@ export default function AdminBlogsPage() {
               sources.map((source) => (
                 <tr key={source.id} className="border-t border-zinc-100">
                   <td className="px-4 py-3 text-zinc-700">{source.id}</td>
-                  <td className="px-4 py-3 text-zinc-900">{source.url}</td>
-                  <td className="px-4 py-3 text-zinc-700">{source.rssUrl ?? "-"}</td>
+                  <td className="px-4 py-3 text-zinc-900">
+                    {source.name && source.name.trim() ? source.name : "-"}
+                  </td>
+                  <td className="break-all px-4 py-3 text-zinc-900">{source.url}</td>
+                  <td className="break-all px-4 py-3 text-zinc-700">{source.rssUrl ?? "-"}</td>
                   <td className="px-4 py-3 text-zinc-700">
                     {new Date(source.createdAt).toLocaleString()}
                   </td>
@@ -236,12 +300,22 @@ export default function AdminBlogsPage() {
                       </button>
                     </div>
                   </td>
+                  <td className="px-4 py-3">
+                    <button
+                      type="button"
+                      onClick={() => void handleDelete(source)}
+                      disabled={deletingId === source.id}
+                      className="cursor-pointer rounded-md border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {deletingId === source.id ? "삭제 중..." : "삭제"}
+                    </button>
+                  </td>
                 </tr>
               ))}
 
             {!isLoading && sources.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-zinc-500">
+                <td colSpan={8} className="px-4 py-6 text-center text-zinc-500">
                   등록된 블로그 URL이 없습니다.
                 </td>
               </tr>

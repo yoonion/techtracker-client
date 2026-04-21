@@ -66,7 +66,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = (await request.json()) as { url?: string };
+    const body = (await request.json()) as { name?: string; url?: string };
+    const name = typeof body.name === "string" ? body.name : "";
     const url = typeof body.url === "string" ? body.url : "";
 
     const response = await fetch(`${API_BASE_URL}/blog-sources`, {
@@ -75,7 +76,7 @@ export async function POST(request: NextRequest) {
         "Content-Type": "application/json",
         Authorization: authorization,
       },
-      body: JSON.stringify({ url }),
+      body: JSON.stringify({ name, url }),
     });
 
     const result = (await response.json()) as unknown;
