@@ -24,6 +24,10 @@ export default function HomePage() {
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [sources, setSources] = useState<BlogSource[]>([]);
   const [selectedSourceId, setSelectedSourceId] = useState<number | null>(null);
+  const [subscribedSourceIds, setSubscribedSourceIds] = useState<number[]>([]);
+  const [pendingSubscriptionSourceId, setPendingSubscriptionSourceId] = useState<
+    number | null
+  >(null);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -33,9 +37,19 @@ export default function HomePage() {
       setErrorMessage("");
 
       try {
-        const [postsResponse, sourcesResponse] = await Promise.all([
+        const accessToken = localStorage.getItem("accessToken");
+        const [postsResponse, sourcesResponse, subscriptionsResponse] = await Promise.all([
           fetch("/api/feed/posts", { cache: "no-store" }),
           fetch("/api/blog-sources", { cache: "no-store" }),
+          accessToken
+            ? fetch("/api/blog-subscriptions", {
+                method: "GET",
+                headers: {
+                  Authorization: `Bearer ${accessToken}`,
+                },
+                cache: "no-store",
+              })
+            : Promise.resolve(null),
         ]);
 
         const postsResult:
@@ -45,6 +59,30 @@ export default function HomePage() {
             } = await postsResponse.json();
         const sourcesResult: BlogSource[] | { message?: string } =
           await sourcesResponse.json();
+        let subscribedSourceIdsResult: number[] = [];
+        if (subscriptionsResponse) {
+          const subscriptionsResult:
+            | { sourceIds?: number[]; message?: string }
+            | { message?: string } = await subscriptionsResponse.json();
+
+          if (subscriptionsResponse.ok) {
+            if (
+              "sourceIds" in subscriptionsResult &&
+              Array.isArray(subscriptionsResult.sourceIds)
+            ) {
+              subscribedSourceIdsResult = subscriptionsResult.sourceIds.filter(
+                (item): item is number => typeof item === "number",
+              );
+            }
+          } else if (subscriptionsResponse.status !== 401) {
+            const message =
+              "message" in subscriptionsResult &&
+              typeof subscriptionsResult.message === "string"
+                ? subscriptionsResult.message
+                : "알림 구독 목록을 불러오지 못했습니다.";
+            throw new Error(message);
+          }
+        }
 
         if (!postsResponse.ok || !Array.isArray(postsResult)) {
           const message =
@@ -72,6 +110,7 @@ export default function HomePage() {
 
         setPosts(nextPosts);
         setSources(sourcesResult);
+        setSubscribedSourceIds(subscribedSourceIdsResult);
       } catch (error) {
         if (error instanceof Error) {
           setErrorMessage(error.message);
@@ -104,6 +143,47 @@ export default function HomePage() {
     selectedSourceId === null
       ? null
       : sources.find((source) => source.id === selectedSourceId) ?? null;
+  const handleToggleSubscribe = async (sourceId: number) => {
+    const accessToken = localStorage.getItem("accessToken");
+    if (!accessToken) {
+      setErrorMessage("알림받기는 로그인 후 사용할 수 있습니다.");
+      return;
+    }
+
+    setErrorMessage("");
+    setPendingSubscriptionSourceId(sourceId);
+    const isSubscribed = subscribedSourceIds.includes(sourceId);
+
+    try {
+      const response = await fetch(`/api/blog-subscriptions/${sourceId}`, {
+        method: isSubscribed ? "DELETE" : "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      const result = (await response.json()) as { message?: string };
+      if (!response.ok) {
+        const message =
+          typeof result.message === "string"
+            ? result.message
+            : "알림 설정 변경에 실패했습니다.";
+        throw new Error(message);
+      }
+
+      setSubscribedSourceIds((prevIds) =>
+        isSubscribed ? prevIds.filter((id) => id !== sourceId) : [...prevIds, sourceId],
+      );
+    } catch (error) {
+      if (error instanceof Error) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage("알림 설정 변경 중 알 수 없는 오류가 발생했습니다.");
+      }
+    } finally {
+      setPendingSubscriptionSourceId(null);
+    }
+  };
 
   return (
     <main className="px-4 py-10 sm:px-6">
@@ -131,49 +211,72 @@ export default function HomePage() {
                 {posts.length}
               </span>
             </button>
-            {sources.map((source) => (
-              <button
-                key={source.id}
-                type="button"
-                onClick={() =>
-                  setSelectedSourceId((prevId) => (prevId === source.id ? null : source.id))
-                }
-                className={`flex min-h-14 items-center gap-2 rounded-xl border px-3 py-2 text-left text-xs font-semibold transition ${
-                  selectedSourceId === source.id
-                    ? "border-sky-300 bg-sky-100 text-sky-800 shadow-sm"
-                    : "border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50"
-                }`}
-              >
-                {source.iconUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={source.iconUrl}
-                    alt={`${source.name ?? "blog"} icon`}
-                    className="h-7 w-7 rounded-md object-cover"
-                    loading="lazy"
-                    referrerPolicy="no-referrer"
-                    onError={(event) => {
-                      event.currentTarget.style.display = "none";
-                    }}
-                  />
-                ) : (
-                  <span className="inline-block h-7 w-7 rounded-md bg-zinc-200" />
-                )}
-                <span className="line-clamp-2">
-                  {source.name && source.name.trim() ? source.name : source.url}
-                </span>
-                <span className="ml-auto flex shrink-0 items-center gap-1">
-                  {sourceHasNewMap.get(source.id) && (
-                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
-                      NEW
+            {sources.map((source) => {
+              const isSubscribed = subscribedSourceIds.includes(source.id);
+
+              return (
+                <div key={source.id} className="rounded-xl border border-zinc-200 bg-zinc-50 p-1">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSelectedSourceId((prevId) =>
+                        prevId === source.id ? null : source.id,
+                      )
+                    }
+                    className={`flex min-h-14 w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-xs font-semibold transition ${
+                      selectedSourceId === source.id
+                        ? "border-sky-300 bg-sky-100 text-sky-800 shadow-sm"
+                        : "border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50"
+                    }`}
+                  >
+                    {source.iconUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={source.iconUrl}
+                        alt={`${source.name ?? "blog"} icon`}
+                        className="h-7 w-7 rounded-md object-cover"
+                        loading="lazy"
+                        referrerPolicy="no-referrer"
+                        onError={(event) => {
+                          event.currentTarget.style.display = "none";
+                        }}
+                      />
+                    ) : (
+                      <span className="inline-block h-7 w-7 rounded-md bg-zinc-200" />
+                    )}
+                    <span className="line-clamp-2">
+                      {source.name && source.name.trim() ? source.name : source.url}
                     </span>
-                  )}
-                  <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-bold text-zinc-700">
-                    {sourcePostCountMap.get(source.id) ?? 0}
-                  </span>
-                </span>
-              </button>
-            ))}
+                    <span className="ml-auto flex shrink-0 items-center gap-1">
+                      {sourceHasNewMap.get(source.id) && (
+                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                          NEW
+                        </span>
+                      )}
+                      <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-bold text-zinc-700">
+                        {sourcePostCountMap.get(source.id) ?? 0}
+                      </span>
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleSubscribe(source.id)}
+                    disabled={pendingSubscriptionSourceId === source.id}
+                    className={`mt-1 w-full rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                      isSubscribed
+                        ? "bg-sky-100 text-sky-800 hover:bg-sky-200"
+                        : "bg-white text-zinc-700 hover:bg-zinc-100"
+                    } disabled:cursor-not-allowed disabled:opacity-60`}
+                  >
+                    {pendingSubscriptionSourceId === source.id
+                      ? "처리 중..."
+                      : isSubscribed
+                        ? "알림받는 중"
+                        : "알림받기"}
+                  </button>
+                </div>
+              );
+            })}
           </div>
           <p className="mt-4 text-xs text-zinc-500">
             {selectedSource
