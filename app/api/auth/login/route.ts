@@ -31,6 +31,7 @@ export async function POST(request: NextRequest) {
       accessToken?: string;
       refreshToken?: string;
       name?: string;
+      role?: string;
       message?: string | string[];
     };
 
@@ -45,6 +46,7 @@ export async function POST(request: NextRequest) {
       accessToken: result.accessToken,
       refreshToken: result.refreshToken,
       name: result.name,
+      role: result.role,
     });
   } catch {
     return NextResponse.json(

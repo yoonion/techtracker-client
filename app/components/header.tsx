@@ -32,6 +32,7 @@ export default function Header() {
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
     localStorage.removeItem("userName");
+    localStorage.removeItem("userRole");
     setUserName(null);
     router.push("/");
     router.refresh();

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -11,7 +10,7 @@ type LoginResponse = {
   role: string;
 };
 
-export default function LoginPage() {
+export default function AdminLoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -48,13 +47,21 @@ export default function LoginPage() {
         throw new Error(message);
       }
 
+      if (result.role !== "ADMIN") {
+        throw new Error("어드민 계정만 접근할 수 있습니다.");
+      }
+
       localStorage.setItem("accessToken", result.accessToken);
       localStorage.setItem("refreshToken", result.refreshToken);
       localStorage.setItem("userName", result.name);
       localStorage.setItem("userRole", result.role);
-      setPassword("");
-      router.push("/");
+      router.push("/admin");
     } catch (error) {
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("refreshToken");
+      localStorage.removeItem("userName");
+      localStorage.removeItem("userRole");
+
       if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
@@ -68,20 +75,19 @@ export default function LoginPage() {
   return (
     <main className="flex flex-1 items-center justify-center px-4 py-10">
       <section className="w-full max-w-md rounded-2xl bg-white p-8 shadow-lg">
-        <h1 className="text-2xl font-bold text-zinc-900">로그인</h1>
-        <p className="mt-2 text-sm text-zinc-600">이메일과 비밀번호를 입력해 주세요.</p>
+        <h1 className="text-2xl font-bold text-zinc-900">어드민 로그인</h1>
+        <p className="mt-2 text-sm text-zinc-600">관리자 계정으로만 접속할 수 있습니다.</p>
 
         <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
           <div className="space-y-1">
             <label htmlFor="email" className="block text-sm font-medium text-zinc-700">
-              아이디(이메일)
+              이메일
             </label>
             <input
               id="email"
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              placeholder="you@example.com"
               required
               className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none transition focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200"
             />
@@ -96,7 +102,6 @@ export default function LoginPage() {
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              placeholder="비밀번호를 입력하세요"
               required
               className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none transition focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200"
             />
@@ -107,26 +112,11 @@ export default function LoginPage() {
             disabled={isLoading}
             className="mt-2 w-full rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-400"
           >
-            {isLoading ? "로그인 중..." : "로그인"}
+            {isLoading ? "로그인 중..." : "어드민 로그인"}
           </button>
         </form>
 
         {errorMessage && <p className="mt-4 text-sm text-red-600">{errorMessage}</p>}
-
-        <div className="mt-6 border-t border-zinc-200 pt-4 space-y-2">
-          <Link
-            href="/signup"
-            className="block w-full rounded-lg border border-zinc-300 px-4 py-2 text-center text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
-          >
-            회원가입
-          </Link>
-          <Link
-            href="/"
-            className="block w-full rounded-lg border border-zinc-300 px-4 py-2 text-center text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
-          >
-            메인으로 이동
-          </Link>
-        </div>
       </section>
     </main>
   );
