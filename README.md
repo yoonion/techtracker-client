@@ -4,7 +4,7 @@
 2. Set your backend endpoint in `API_BASE_URL`.
 
 ```bash
-cp .env.example .env.local
+cp env .env.local
 ```
 
 ```env
