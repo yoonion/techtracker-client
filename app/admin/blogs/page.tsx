@@ -5,6 +5,7 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 type BlogSource = {
   id: number;
   url: string;
+  rssUrl: string | null;
   isActive: boolean;
   lastCollectedAt: string | null;
   createdAt: string;
@@ -176,11 +177,12 @@ export default function AdminBlogsPage() {
       {successMessage && <p className="mt-4 text-sm text-emerald-600">{successMessage}</p>}
 
       <div className="mt-6 overflow-x-auto rounded-xl border border-zinc-200">
-        <table className="w-full min-w-[640px] text-left text-sm">
+        <table className="w-full min-w-[780px] text-left text-sm">
           <thead className="bg-zinc-50 text-zinc-700">
             <tr>
               <th className="px-4 py-3 font-semibold">ID</th>
               <th className="px-4 py-3 font-semibold">블로그 URL</th>
+              <th className="px-4 py-3 font-semibold">RSS 경로</th>
               <th className="px-4 py-3 font-semibold">등록일</th>
               <th className="px-4 py-3 font-semibold">마지막 수집일</th>
               <th className="px-4 py-3 font-semibold">수집 상태</th>
@@ -189,7 +191,7 @@ export default function AdminBlogsPage() {
           <tbody>
             {isLoading && (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-zinc-500">
+                <td colSpan={6} className="px-4 py-6 text-center text-zinc-500">
                   블로그 목록을 불러오는 중...
                 </td>
               </tr>
@@ -200,6 +202,7 @@ export default function AdminBlogsPage() {
                 <tr key={source.id} className="border-t border-zinc-100">
                   <td className="px-4 py-3 text-zinc-700">{source.id}</td>
                   <td className="px-4 py-3 text-zinc-900">{source.url}</td>
+                  <td className="px-4 py-3 text-zinc-700">{source.rssUrl ?? "-"}</td>
                   <td className="px-4 py-3 text-zinc-700">
                     {new Date(source.createdAt).toLocaleString()}
                   </td>
@@ -238,7 +241,7 @@ export default function AdminBlogsPage() {
 
             {!isLoading && sources.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-zinc-500">
+                <td colSpan={6} className="px-4 py-6 text-center text-zinc-500">
                   등록된 블로그 URL이 없습니다.
                 </td>
               </tr>
