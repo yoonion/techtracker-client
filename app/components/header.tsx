@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -8,6 +9,7 @@ export default function Header() {
   const router = useRouter();
   const pathname = usePathname();
   const [userName, setUserName] = useState<string | null>(null);
+  const isAdminRoute = pathname.startsWith("/admin");
 
   useEffect(() => {
     const syncAuthState = () => {
@@ -34,15 +36,27 @@ export default function Header() {
     localStorage.removeItem("userName");
     localStorage.removeItem("userRole");
     setUserName(null);
-    router.push("/");
+    router.push(isAdminRoute ? "/admin/login" : "/");
     router.refresh();
   };
 
   return (
     <header className="border-b border-zinc-200 bg-white">
       <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
-        <Link href="/" className="text-lg font-bold text-zinc-900">
-          TechTracker
+        <Link
+          href={isAdminRoute ? "/admin" : "/"}
+          className="flex items-center gap-2 text-lg font-bold text-zinc-900"
+        >
+          <Image
+            src="/techtracker-icon.png"
+            alt="TechTracker logo"
+            width={32}
+            height={32}
+            unoptimized
+            priority
+            className="rounded-md"
+          />
+          <span>{isAdminRoute ? "TechTracker Admin" : "TechTracker"}</span>
         </Link>
         <nav className="flex items-center gap-2">
           {userName ? (
@@ -59,17 +73,19 @@ export default function Header() {
           ) : (
             <>
               <Link
-                href="/login"
+                href={isAdminRoute ? "/admin/login" : "/login"}
                 className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
               >
                 로그인
               </Link>
-              <Link
-                href="/signup"
-                className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
-              >
-                회원가입
-              </Link>
+              {!isAdminRoute && (
+                <Link
+                  href="/signup"
+                  className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
+                >
+                  회원가입
+                </Link>
+              )}
             </>
           )}
         </nav>
