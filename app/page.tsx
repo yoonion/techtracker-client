@@ -6,6 +6,7 @@ type BlogSource = {
   id: number;
   name: string | null;
   url: string;
+  iconUrl: string | null;
 };
 
 type FeedPost = {
@@ -16,6 +17,7 @@ type FeedPost = {
   publishedAt: string | null;
   collectedAt: string;
   source: BlogSource;
+  isNew: boolean;
 };
 
 export default function HomePage() {
@@ -33,7 +35,11 @@ export default function HomePage() {
           cache: "no-store",
         });
 
-        const result: FeedPost[] | { message?: string } = await response.json();
+        const result:
+          | Omit<FeedPost, "isNew">[]
+          | {
+              message?: string;
+            } = await response.json();
 
         if (!response.ok || !Array.isArray(result)) {
           const message =
@@ -43,7 +49,15 @@ export default function HomePage() {
           throw new Error(message);
         }
 
-        setPosts(result);
+        const nowMs = Date.now();
+        const nextPosts = result.map((post) => ({
+          ...post,
+          isNew: post.publishedAt
+            ? nowMs - new Date(post.publishedAt).getTime() <= 3 * 24 * 60 * 60 * 1000
+            : false,
+        }));
+
+        setPosts(nextPosts);
       } catch (error) {
         if (error instanceof Error) {
           setErrorMessage(error.message);
@@ -84,14 +98,38 @@ export default function HomePage() {
           <div className="grid gap-4 md:grid-cols-2">
             {posts.map((post) => (
               <article key={post.id} className="rounded-2xl bg-white p-5 shadow-sm">
-                <p className="text-xs text-zinc-500">
-                  {post.source.name && post.source.name.trim()
-                    ? post.source.name
-                    : post.source.url}
-                </p>
-                <h2 className="mt-2 line-clamp-2 text-lg font-semibold text-zinc-900">
-                  {post.title}
-                </h2>
+                <div className="flex items-center gap-2">
+                  {post.source.iconUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={post.source.iconUrl}
+                      alt={`${post.source.name ?? "blog"} icon`}
+                      className="h-4 w-4 rounded-sm object-cover"
+                      loading="lazy"
+                      referrerPolicy="no-referrer"
+                      onError={(event) => {
+                        event.currentTarget.style.display = "none";
+                      }}
+                    />
+                  ) : (
+                    <span className="inline-block h-4 w-4 rounded-sm bg-zinc-200" />
+                  )}
+                  <p className="text-xs text-zinc-500">
+                    {post.source.name && post.source.name.trim()
+                      ? post.source.name
+                      : post.source.url}
+                  </p>
+                </div>
+                <div className="mt-2 flex items-start gap-2">
+                  <h2 className="line-clamp-2 text-lg font-semibold text-zinc-900">
+                    {post.title}
+                  </h2>
+                  {post.isNew && (
+                    <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                      NEW
+                    </span>
+                  )}
+                </div>
                 <p className="mt-2 line-clamp-3 text-sm text-zinc-700">
                   {post.summary && post.summary.trim()
                     ? post.summary

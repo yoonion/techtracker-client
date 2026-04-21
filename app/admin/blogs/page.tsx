@@ -6,6 +6,7 @@ type BlogSource = {
   id: number;
   name: string | null;
   url: string;
+  iconUrl: string | null;
   rssUrl: string | null;
   isActive: boolean;
   lastCollectedAt: string | null;
@@ -263,7 +264,24 @@ export default function AdminBlogsPage() {
                 <tr key={source.id} className="border-t border-zinc-100">
                   <td className="px-4 py-3 text-zinc-700">{source.id}</td>
                   <td className="px-4 py-3 text-zinc-900">
-                    {source.name && source.name.trim() ? source.name : "-"}
+                    <div className="flex items-center gap-2">
+                      {source.iconUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={source.iconUrl}
+                          alt={`${source.name ?? "blog"} icon`}
+                          className="h-4 w-4 rounded-sm object-cover"
+                          loading="lazy"
+                          referrerPolicy="no-referrer"
+                          onError={(event) => {
+                            event.currentTarget.style.display = "none";
+                          }}
+                        />
+                      ) : (
+                        <span className="inline-block h-4 w-4 rounded-sm bg-zinc-200" />
+                      )}
+                      <span>{source.name && source.name.trim() ? source.name : "-"}</span>
+                    </div>
                   </td>
                   <td className="break-all px-4 py-3 text-zinc-900">{source.url}</td>
                   <td className="break-all px-4 py-3 text-zinc-700">{source.rssUrl ?? "-"}</td>
