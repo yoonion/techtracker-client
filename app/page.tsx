@@ -7,6 +7,7 @@ type BlogSource = {
   name: string | null;
   url: string;
   iconUrl: string | null;
+  isActive?: boolean;
 };
 
 type FeedPost = {
@@ -24,7 +25,9 @@ export default function HomePage() {
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [sources, setSources] = useState<BlogSource[]>([]);
   const [selectedSourceId, setSelectedSourceId] = useState<number | null>(null);
+  const [sourceSearchQuery, setSourceSearchQuery] = useState("");
   const [subscribedSourceIds, setSubscribedSourceIds] = useState<number[]>([]);
+  const [isSourcesExpanded, setIsSourcesExpanded] = useState(false);
   const [pendingSubscriptionSourceId, setPendingSubscriptionSourceId] = useState<
     number | null
   >(null);
@@ -143,6 +146,26 @@ export default function HomePage() {
     selectedSourceId === null
       ? null
       : sources.find((source) => source.id === selectedSourceId) ?? null;
+  const activeSourcesCount = sources.filter((source) => source.isActive !== false).length;
+  const normalizedSourceSearchQuery = sourceSearchQuery.trim().toLowerCase();
+  const searchedSources =
+    normalizedSourceSearchQuery.length > 0
+      ? sources.filter((source) => {
+          const searchableName = source.name?.toLowerCase() ?? "";
+          const searchableUrl = source.url.toLowerCase();
+          return (
+            searchableName.includes(normalizedSourceSearchQuery) ||
+            searchableUrl.includes(normalizedSourceSearchQuery)
+          );
+        })
+      : sources;
+  const collapsedSourceCount = 7;
+  const hasMoreSources =
+    normalizedSourceSearchQuery.length === 0 &&
+    searchedSources.length > collapsedSourceCount;
+  const visibleSources = isSourcesExpanded
+    ? searchedSources
+    : searchedSources.slice(0, collapsedSourceCount);
   const handleToggleSubscribe = async (sourceId: number) => {
     const accessToken = localStorage.getItem("accessToken");
     if (!accessToken) {
@@ -193,7 +216,45 @@ export default function HomePage() {
           <p className="mt-2 text-sm text-zinc-600">
             블로그 아이콘 버튼을 눌러 원하는 소스 글만 모아볼 수 있습니다.
           </p>
-          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+            <span className="rounded-full bg-zinc-100 px-2.5 py-1 font-semibold text-zinc-700">
+              수집 글 {posts.length}개
+            </span>
+            <span className="rounded-full bg-sky-100 px-2.5 py-1 font-semibold text-sky-800">
+              수집중 블로그 {activeSourcesCount}개
+            </span>
+          </div>
+          <div className="mt-4">
+            <div className="relative">
+            <input
+              type="text"
+              value={sourceSearchQuery}
+              onChange={(event) => setSourceSearchQuery(event.target.value)}
+              placeholder="블로그 이름 또는 URL 검색"
+              className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 pr-10 text-sm text-zinc-800 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+            />
+              <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-zinc-400">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  className="h-4 w-4"
+                  aria-hidden
+                >
+                  <circle cx="11" cy="11" r="7" />
+                  <line x1="16.65" y1="16.65" x2="21" y2="21" />
+                </svg>
+              </span>
+            </div>
+          </div>
+          <div
+            className={`mt-5 overflow-hidden transition-all duration-300 ease-in-out ${
+              isSourcesExpanded ? "max-h-[2000px]" : "max-h-[360px]"
+            }`}
+          >
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             <button
               type="button"
               onClick={() => setSelectedSourceId(null)}
@@ -211,73 +272,91 @@ export default function HomePage() {
                 {posts.length}
               </span>
             </button>
-            {sources.map((source) => {
-              const isSubscribed = subscribedSourceIds.includes(source.id);
+              {visibleSources.map((source) => {
+                const isSubscribed = subscribedSourceIds.includes(source.id);
 
-              return (
-                <div key={source.id} className="rounded-xl border border-zinc-200 bg-zinc-50 p-1">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setSelectedSourceId((prevId) =>
-                        prevId === source.id ? null : source.id,
-                      )
-                    }
-                    className={`flex min-h-14 w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-xs font-semibold transition ${
-                      selectedSourceId === source.id
-                        ? "border-sky-300 bg-sky-100 text-sky-800 shadow-sm"
-                        : "border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50"
-                    }`}
-                  >
-                    {source.iconUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={source.iconUrl}
-                        alt={`${source.name ?? "blog"} icon`}
-                        className="h-7 w-7 rounded-md object-cover"
-                        loading="lazy"
-                        referrerPolicy="no-referrer"
-                        onError={(event) => {
-                          event.currentTarget.style.display = "none";
-                        }}
-                      />
-                    ) : (
-                      <span className="inline-block h-7 w-7 rounded-md bg-zinc-200" />
-                    )}
-                    <span className="line-clamp-2">
-                      {source.name && source.name.trim() ? source.name : source.url}
-                    </span>
-                    <span className="ml-auto flex shrink-0 items-center gap-1">
-                      {sourceHasNewMap.get(source.id) && (
-                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
-                          NEW
-                        </span>
+                return (
+                  <div key={source.id} className="rounded-xl border border-zinc-200 bg-zinc-50 p-1">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSelectedSourceId((prevId) =>
+                          prevId === source.id ? null : source.id,
+                        )
+                      }
+                      className={`flex min-h-14 w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-xs font-semibold transition ${
+                        selectedSourceId === source.id
+                          ? "border-sky-300 bg-sky-100 text-sky-800 shadow-sm"
+                          : "border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50"
+                      }`}
+                    >
+                      {source.iconUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={source.iconUrl}
+                          alt={`${source.name ?? "blog"} icon`}
+                          className="h-7 w-7 rounded-md object-cover"
+                          loading="lazy"
+                          referrerPolicy="no-referrer"
+                          onError={(event) => {
+                            event.currentTarget.style.display = "none";
+                          }}
+                        />
+                      ) : (
+                        <span className="inline-block h-7 w-7 rounded-md bg-zinc-200" />
                       )}
-                      <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-bold text-zinc-700">
-                        {sourcePostCountMap.get(source.id) ?? 0}
+                      <span className="line-clamp-2">
+                        {source.name && source.name.trim() ? source.name : source.url}
                       </span>
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleToggleSubscribe(source.id)}
-                    disabled={pendingSubscriptionSourceId === source.id}
-                    className={`mt-1 w-full rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                      isSubscribed
-                        ? "bg-sky-100 text-sky-800 hover:bg-sky-200"
-                        : "bg-white text-zinc-700 hover:bg-zinc-100"
-                    } disabled:cursor-not-allowed disabled:opacity-60`}
-                  >
-                    {pendingSubscriptionSourceId === source.id
-                      ? "처리 중..."
-                      : isSubscribed
-                        ? "알림받는 중"
-                        : "알림받기"}
-                  </button>
-                </div>
-              );
-            })}
+                      <span className="ml-auto flex shrink-0 items-center gap-1">
+                        {sourceHasNewMap.get(source.id) && (
+                          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                            NEW
+                          </span>
+                        )}
+                        <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-bold text-zinc-700">
+                          {sourcePostCountMap.get(source.id) ?? 0}
+                        </span>
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleSubscribe(source.id)}
+                      disabled={pendingSubscriptionSourceId === source.id}
+                      className={`mt-1 w-full rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                        isSubscribed
+                          ? "bg-sky-100 text-sky-800 hover:bg-sky-200"
+                          : "bg-white text-zinc-700 hover:bg-zinc-100"
+                      } disabled:cursor-not-allowed disabled:opacity-60`}
+                    >
+                      {pendingSubscriptionSourceId === source.id
+                        ? "처리 중..."
+                        : isSubscribed
+                          ? "알림받는 중"
+                          : "알림받기"}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
           </div>
+          {normalizedSourceSearchQuery.length > 0 && searchedSources.length === 0 && (
+            <p className="mt-3 text-xs text-zinc-500">검색된 블로그가 없습니다.</p>
+          )}
+          {hasMoreSources && (
+            <div className="mt-3 flex justify-center">
+              <button
+                type="button"
+                onClick={() => setIsSourcesExpanded((prev) => !prev)}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-600 transition hover:bg-zinc-50"
+                aria-label={isSourcesExpanded ? "필터 접기" : "필터 펼치기"}
+              >
+                <span aria-hidden className="text-sm">
+                  {isSourcesExpanded ? "▲" : "▼"}
+                </span>
+              </button>
+            </div>
+          )}
           <p className="mt-4 text-xs text-zinc-500">
             {selectedSource
               ? `현재 필터: ${selectedSource.name && selectedSource.name.trim() ? selectedSource.name : selectedSource.url}`
