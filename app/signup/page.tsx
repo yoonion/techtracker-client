@@ -49,7 +49,7 @@ export default function SignupPage() {
       setEmail("");
       setPassword("");
       setTimeout(() => {
-        router.push("/");
+        router.push("/login");
       }, 1000);
     } catch (error) {
       if (error instanceof Error) {
@@ -63,7 +63,7 @@ export default function SignupPage() {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-zinc-100 px-4">
+    <main className="flex flex-1 items-center justify-center px-4 py-10">
       <section className="w-full max-w-md rounded-2xl bg-white p-8 shadow-lg">
         <h1 className="text-2xl font-bold text-zinc-900">회원가입</h1>
         <p className="mt-2 text-sm text-zinc-600">이름, 이메일, 비밀번호를 입력해 주세요.</p>
@@ -128,7 +128,7 @@ export default function SignupPage() {
 
         <div className="mt-6 border-t border-zinc-200 pt-4">
           <Link
-            href="/"
+            href="/login"
             className="block w-full rounded-lg border border-zinc-300 px-4 py-2 text-center text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
           >
             로그인으로 돌아가기

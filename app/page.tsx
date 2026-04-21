@@ -1,116 +1,118 @@
-"use client";
-
-import Link from "next/link";
-import { FormEvent, useState } from "react";
-
-type LoginResponse = {
-  accessToken: string;
-  refreshToken: string;
+type FeedItem = {
+  title: string;
+  url: string;
+  publishedAt: string;
 };
 
-export default function Home() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
+type BlogSection = {
+  name: string;
+  description: string;
+  homepage: string;
+  latestPosts: FeedItem[];
+};
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setErrorMessage("");
-    setSuccessMessage("");
-    setIsLoading(true);
+const BLOG_SECTIONS: BlogSection[] = [
+  {
+    name: "Naver D2",
+    description: "네이버 기술 조직의 엔지니어링 아티클",
+    homepage: "https://d2.naver.com/home",
+    latestPosts: [
+      {
+        title: "대규모 트래픽에서 안정적인 배포 전략 구성하기",
+        url: "https://d2.naver.com/home",
+        publishedAt: "2026-04-18",
+      },
+      {
+        title: "사내 검색 시스템 개선 회고",
+        url: "https://d2.naver.com/home",
+        publishedAt: "2026-04-10",
+      },
+    ],
+  },
+  {
+    name: "Kakao Tech",
+    description: "카카오 서비스 개발 경험과 기술 공유",
+    homepage: "https://tech.kakao.com/",
+    latestPosts: [
+      {
+        title: "메시징 플랫폼 성능 개선 사례",
+        url: "https://tech.kakao.com/",
+        publishedAt: "2026-04-16",
+      },
+      {
+        title: "대용량 로그 파이프라인 운영 노하우",
+        url: "https://tech.kakao.com/",
+        publishedAt: "2026-04-07",
+      },
+    ],
+  },
+  {
+    name: "Toss Tech",
+    description: "토스 팀의 제품 개발과 운영 인사이트",
+    homepage: "https://toss.tech/",
+    latestPosts: [
+      {
+        title: "송금 서비스의 신뢰성을 높인 모니터링 체계",
+        url: "https://toss.tech/",
+        publishedAt: "2026-04-14",
+      },
+      {
+        title: "레거시 마이그레이션을 안전하게 진행하는 방법",
+        url: "https://toss.tech/",
+        publishedAt: "2026-04-09",
+      },
+    ],
+  },
+];
 
-    try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const result: LoginResponse | { message?: string } = await response.json();
-
-      if (!response.ok || !("accessToken" in result) || !("refreshToken" in result)) {
-        const message =
-          "message" in result && typeof result.message === "string"
-            ? result.message
-            : "로그인에 실패했습니다.";
-        throw new Error(message);
-      }
-
-      localStorage.setItem("accessToken", result.accessToken);
-      localStorage.setItem("refreshToken", result.refreshToken);
-      setSuccessMessage("로그인 성공! 토큰이 저장되었습니다.");
-      setPassword("");
-    } catch (error) {
-      if (error instanceof Error) {
-        setErrorMessage(error.message);
-      } else {
-        setErrorMessage("로그인 중 알 수 없는 오류가 발생했습니다.");
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+export default function HomePage() {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-zinc-100 px-4">
-      <section className="w-full max-w-md rounded-2xl bg-white p-8 shadow-lg">
-        <h1 className="text-2xl font-bold text-zinc-900">로그인</h1>
-        <p className="mt-2 text-sm text-zinc-600">이메일과 비밀번호를 입력해 주세요.</p>
-
-        <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-          <div className="space-y-1">
-            <label htmlFor="email" className="block text-sm font-medium text-zinc-700">
-              아이디(이메일)
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="you@example.com"
-              required
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none transition focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200"
-            />
+    <main className="px-4 py-10 sm:px-6">
+      <section className="mx-auto max-w-6xl">
+        <header className="mb-8 rounded-2xl bg-white p-6 shadow-sm">
+          <div>
+            <h1 className="text-2xl font-bold text-zinc-900">TechTracker 피드</h1>
+            <p className="mt-2 text-sm text-zinc-600">
+              테크 블로그별 최신 글을 한 번에 확인하는 메인 페이지입니다.
+            </p>
           </div>
+        </header>
 
-          <div className="space-y-1">
-            <label htmlFor="password" className="block text-sm font-medium text-zinc-700">
-              비밀번호
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="비밀번호를 입력하세요"
-              required
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none transition focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200"
-            />
-          </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {BLOG_SECTIONS.map((blog) => (
+            <article key={blog.name} className="rounded-2xl bg-white p-5 shadow-sm">
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-semibold text-zinc-900">{blog.name}</h2>
+                  <p className="mt-1 text-sm text-zinc-600">{blog.description}</p>
+                </div>
+                <a
+                  href={blog.homepage}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="shrink-0 rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+                >
+                  방문
+                </a>
+              </div>
 
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="mt-2 w-full rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-400"
-          >
-            {isLoading ? "로그인 중..." : "로그인"}
-          </button>
-        </form>
-
-        {errorMessage && <p className="mt-4 text-sm text-red-600">{errorMessage}</p>}
-        {successMessage && <p className="mt-4 text-sm text-emerald-600">{successMessage}</p>}
-
-        <div className="mt-6 border-t border-zinc-200 pt-4">
-          <Link
-            href="/signup"
-            className="block w-full rounded-lg border border-zinc-300 px-4 py-2 text-center text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
-          >
-            회원가입
-          </Link>
+              <ul className="space-y-3">
+                {blog.latestPosts.map((post) => (
+                  <li key={`${blog.name}-${post.title}`} className="rounded-lg bg-zinc-50 p-3">
+                    <a
+                      href={post.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="line-clamp-2 text-sm font-medium text-zinc-800 hover:underline"
+                    >
+                      {post.title}
+                    </a>
+                    <p className="mt-1 text-xs text-zinc-500">{post.publishedAt}</p>
+                  </li>
+                ))}
+              </ul>
+            </article>
+          ))}
         </div>
       </section>
     </main>
