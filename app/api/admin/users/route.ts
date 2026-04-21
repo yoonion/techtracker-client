@@ -1,8 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 const API_BASE_URL = process.env.API_BASE_URL;
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     if (!API_BASE_URL) {
       return NextResponse.json(
@@ -11,10 +11,19 @@ export async function GET() {
       );
     }
 
+    const authorization = request.headers.get("authorization");
+    if (!authorization) {
+      return NextResponse.json(
+        { message: "인증 토큰이 필요합니다." },
+        { status: 401 },
+      );
+    }
+
     const response = await fetch(`${API_BASE_URL}/users`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
+        Authorization: authorization,
       },
       cache: "no-store",
     });
