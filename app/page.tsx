@@ -45,6 +45,9 @@ export default function HomePage() {
   const [pendingSubscriptionSourceId, setPendingSubscriptionSourceId] = useState<
     number | null
   >(null);
+  const [bulkSubscriptionAction, setBulkSubscriptionAction] = useState<
+    "subscribe" | "unsubscribe" | null
+  >(null);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -199,6 +202,87 @@ export default function HomePage() {
   const visibleSources = isSourcesExpanded
     ? searchedSources
     : searchedSources.slice(0, collapsedSourceCount);
+
+  const handleBulkSubscribe = async (subscribeAll: boolean) => {
+    const accessToken = localStorage.getItem("accessToken");
+    if (!accessToken) {
+      setErrorMessage("알림 설정은 로그인 후 사용할 수 있습니다.");
+      return;
+    }
+
+    const targetSourceIds = subscribeAll
+      ? sources
+          .map((source) => source.id)
+          .filter((sourceId) => !subscribedSourceIds.includes(sourceId))
+      : subscribedSourceIds;
+
+    if (targetSourceIds.length === 0) {
+      setErrorMessage(
+        subscribeAll
+          ? "이미 전체 블로그 알림이 설정되어 있습니다."
+          : "이미 전체 알림이 해제되어 있습니다.",
+      );
+      return;
+    }
+
+    setErrorMessage("");
+    setBulkSubscriptionAction(subscribeAll ? "subscribe" : "unsubscribe");
+
+    try {
+      const results = await Promise.allSettled(
+        targetSourceIds.map(async (sourceId) => {
+          const response = await fetchWithAuth(`/api/blog-subscriptions/${sourceId}`, {
+            method: subscribeAll ? "POST" : "DELETE",
+          });
+
+          const result = (await response.json()) as { message?: string };
+          if (!response.ok) {
+            throw new Error(
+              typeof result.message === "string"
+                ? result.message
+                : "알림 설정 변경에 실패했습니다.",
+            );
+          }
+
+          return sourceId;
+        }),
+      );
+
+      const successIds = results
+        .filter(
+          (
+            item,
+          ): item is PromiseFulfilledResult<number> => item.status === "fulfilled",
+        )
+        .map((item) => item.value);
+
+      setSubscribedSourceIds((prevIds) => {
+        const nextIds = new Set(prevIds);
+        if (subscribeAll) {
+          successIds.forEach((id) => nextIds.add(id));
+        } else {
+          successIds.forEach((id) => nextIds.delete(id));
+        }
+        return Array.from(nextIds);
+      });
+
+      const failedCount = targetSourceIds.length - successIds.length;
+      if (failedCount > 0) {
+        setErrorMessage(
+          `${failedCount}개 블로그는 처리에 실패했습니다. 잠시 후 다시 시도해 주세요.`,
+        );
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage("전체 알림 설정 변경 중 알 수 없는 오류가 발생했습니다.");
+      }
+    } finally {
+      setBulkSubscriptionAction(null);
+    }
+  };
+
   const handleToggleSubscribe = async (sourceId: number) => {
     const accessToken = localStorage.getItem("accessToken");
     if (!accessToken) {
@@ -253,6 +337,28 @@ export default function HomePage() {
             <span className="rounded-full bg-sky-100 px-2.5 py-1 font-semibold text-sky-800">
               수집중 블로그 총 {activeSourcesCount}개
             </span>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => handleBulkSubscribe(true)}
+              disabled={bulkSubscriptionAction !== null || pendingSubscriptionSourceId !== null}
+              className="rounded-lg border border-sky-200 bg-white px-3 py-2 text-xs font-semibold text-sky-700 transition hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {bulkSubscriptionAction === "subscribe"
+                ? "전체 알림설정 중..."
+                : "전체 알림설정"}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleBulkSubscribe(false)}
+              disabled={bulkSubscriptionAction !== null || pendingSubscriptionSourceId !== null}
+              className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {bulkSubscriptionAction === "unsubscribe"
+                ? "전체 알림해제 중..."
+                : "전체 알림해제"}
+            </button>
           </div>
           <div className="mt-4">
             <div className="relative">
