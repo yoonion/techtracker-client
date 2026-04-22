@@ -151,7 +151,7 @@ export default function HomePage() {
         const nextPosts = postsResult.items.map((post) => ({
           ...post,
           isNew: post.publishedAt
-            ? nowMs - new Date(post.publishedAt).getTime() <= 3 * 24 * 60 * 60 * 1000
+            ? nowMs - new Date(post.publishedAt).getTime() <= 7 * 24 * 60 * 60 * 1000
             : false,
         }));
 
