@@ -27,6 +27,7 @@ export default function MyPage() {
   const router = useRouter();
   const [me, setMe] = useState<Me>(initialMe);
   const [isLoading, setIsLoading] = useState(true);
+  const [isConnecting, setIsConnecting] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [loadErrorMessage, setLoadErrorMessage] = useState("");
   const [actionErrorMessage, setActionErrorMessage] = useState("");
@@ -114,6 +115,35 @@ export default function MyPage() {
     }
   };
 
+  const handleConnectDiscord = async () => {
+    if (isConnecting || me.discordUsername) {
+      return;
+    }
+
+    setActionErrorMessage("");
+    setNoticeMessage("");
+    setIsConnecting(true);
+
+    try {
+      const response = await fetchWithAuth("/api/auth/discord/connect", {
+        method: "GET",
+      });
+      const result = (await response.json()) as { url?: string; message?: string };
+      if (!response.ok || typeof result.url !== "string") {
+        throw new Error(result.message ?? "Discord 연동을 시작할 수 없습니다.");
+      }
+
+      window.location.href = result.url;
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Discord 연동 중 알 수 없는 오류가 발생했습니다.";
+      setActionErrorMessage(message);
+      setIsConnecting(false);
+    }
+  };
+
   return (
     <main className="px-4 py-10 sm:px-6">
       <section className="mx-auto w-full max-w-3xl rounded-2xl bg-white p-6 shadow-sm sm:p-8">
@@ -152,7 +182,7 @@ export default function MyPage() {
                 <span className="text-zinc-900">
                   {me.discordUsername ? me.discordUsername : "미연동"}
                 </span>
-                {me.discordUsername && (
+                {me.discordUsername ? (
                   <button
                     type="button"
                     onClick={handleDisconnectDiscord}
@@ -160,6 +190,15 @@ export default function MyPage() {
                     className="rounded-lg border border-red-200 bg-white px-2.5 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {isDisconnecting ? "해제 중..." : "연동 해제"}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleConnectDiscord}
+                    disabled={isConnecting}
+                    className="rounded-lg border border-indigo-200 bg-white px-2.5 py-1 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isConnecting ? "연동 준비 중..." : "Discord 연동"}
                   </button>
                 )}
               </div>
