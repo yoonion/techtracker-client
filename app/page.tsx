@@ -275,7 +275,7 @@ export default function HomePage() {
           );
         })
       : sources;
-  const collapsedSourceCount = 7;
+  const collapsedSourceCount = 9;
   const hasMoreSources =
     normalizedSourceSearchQuery.length === 0 &&
     searchedSources.length > collapsedSourceCount;
@@ -287,6 +287,12 @@ export default function HomePage() {
     const accessToken = localStorage.getItem("accessToken");
     if (!accessToken) {
       setSubscriptionNotice("알림 설정은 로그인 후 사용할 수 있습니다.");
+      return;
+    }
+    if (subscribeAll && !discordStatus?.connected) {
+      setSubscriptionNotice(
+        "알림 구독을 하려면 Discord 연동이 필요합니다. 먼저 Discord 연동을 진행해 주세요.",
+      );
       return;
     }
 
@@ -377,10 +383,16 @@ export default function HomePage() {
       setSubscriptionNotice("알림받기는 로그인 후 사용할 수 있습니다.");
       return;
     }
+    const isSubscribed = subscribedSourceIds.includes(sourceId);
+    if (!isSubscribed && !discordStatus?.connected) {
+      setSubscriptionNotice(
+        "알림 구독을 하려면 Discord 연동이 필요합니다. 먼저 Discord 연동을 진행해 주세요.",
+      );
+      return;
+    }
 
     setSubscriptionNotice("");
     setPendingSubscriptionSourceId(sourceId);
-    const isSubscribed = subscribedSourceIds.includes(sourceId);
 
     try {
       const response = await fetchWithAuth(`/api/blog-subscriptions/${sourceId}`, {
@@ -608,23 +620,23 @@ export default function HomePage() {
           </div>
           <div
             className={`mt-5 overflow-hidden transition-all duration-300 ease-in-out ${
-              isSourcesExpanded ? "max-h-[2000px]" : "max-h-[360px]"
+              isSourcesExpanded ? "max-h-[2000px]" : "max-h-[430px]"
             }`}
           >
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
             <button
               type="button"
               onClick={() => {
                 setSelectedSourceId(null);
                 setCurrentPage(1);
               }}
-              className={`flex min-h-14 items-center gap-2 rounded-xl border px-3 py-2 text-left text-xs font-semibold transition ${
+              className={`flex min-h-12 items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-left text-[11px] font-semibold transition ${
                 selectedSourceId === null
                   ? "border-sky-300 bg-sky-100 text-sky-800 shadow-sm"
                   : "border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50"
               }`}
             >
-              <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-zinc-200 text-[11px] font-bold text-zinc-700">
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-zinc-200 text-[10px] font-bold text-zinc-700">
                 ALL
               </span>
               <span className="line-clamp-2">전체 블로그 보기</span>
@@ -636,7 +648,7 @@ export default function HomePage() {
                 const isSubscribed = subscribedSourceIds.includes(source.id);
 
                 return (
-                  <div key={source.id} className="rounded-xl border border-zinc-200 bg-zinc-50 p-1">
+                  <div key={source.id} className="rounded-xl border border-zinc-200 bg-zinc-50 p-0.5">
                     <button
                       type="button"
                       onClick={() =>
@@ -646,7 +658,7 @@ export default function HomePage() {
                           return nextId;
                         })
                       }
-                      className={`flex min-h-14 w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-xs font-semibold transition ${
+                      className={`flex min-h-12 w-full items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-left text-[11px] font-semibold transition ${
                         selectedSourceId === source.id
                           ? "border-sky-300 bg-sky-100 text-sky-800 shadow-sm"
                           : "border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50"
@@ -657,7 +669,7 @@ export default function HomePage() {
                         <img
                           src={source.iconUrl}
                           alt={`${source.name ?? "blog"} icon`}
-                          className="h-7 w-7 rounded-md object-cover"
+                          className="h-6 w-6 rounded-md object-cover"
                           loading="lazy"
                           referrerPolicy="no-referrer"
                           onError={(event) => {
@@ -665,7 +677,7 @@ export default function HomePage() {
                           }}
                         />
                       ) : (
-                        <span className="inline-block h-7 w-7 rounded-md bg-zinc-200" />
+                        <span className="inline-block h-6 w-6 rounded-md bg-zinc-200" />
                       )}
                       <span className="line-clamp-2">
                         {source.name && source.name.trim() ? source.name : source.url}
@@ -685,7 +697,7 @@ export default function HomePage() {
                       type="button"
                       onClick={() => handleToggleSubscribe(source.id)}
                       disabled={pendingSubscriptionSourceId === source.id}
-                      className={`mt-1 w-full rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                      className={`mt-0.5 w-full rounded-lg px-2.5 py-1 text-[11px] font-semibold transition ${
                         isSubscribed
                           ? "bg-sky-100 text-sky-800 hover:bg-sky-200"
                           : "bg-white text-zinc-700 hover:bg-zinc-100"
