@@ -684,7 +684,7 @@ export default function HomePage() {
                       </span>
                       <span className="ml-auto flex shrink-0 items-center gap-1">
                         {(source.newPostCount ?? 0) > 0 && (
-                          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                          <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700">
                             NEW
                           </span>
                         )}
@@ -788,7 +788,7 @@ export default function HomePage() {
                     </a>
                   </h2>
                   {post.isNew && (
-                    <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                    <span className="shrink-0 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700">
                       NEW
                     </span>
                   )}
