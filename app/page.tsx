@@ -49,12 +49,13 @@ export default function HomePage() {
     "subscribe" | "unsubscribe" | null
   >(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [feedErrorMessage, setFeedErrorMessage] = useState("");
+  const [subscriptionNotice, setSubscriptionNotice] = useState("");
 
   useEffect(() => {
     const fetchSourcesAndSubscriptions = async () => {
       setIsLoading(true);
-      setErrorMessage("");
+      setFeedErrorMessage("");
 
       try {
         const accessToken = localStorage.getItem("accessToken");
@@ -106,9 +107,9 @@ export default function HomePage() {
         setSubscribedSourceIds(subscribedSourceIdsResult);
       } catch (error) {
         if (error instanceof Error) {
-          setErrorMessage(error.message);
+          setFeedErrorMessage(error.message);
         } else {
-          setErrorMessage("피드 조회 중 알 수 없는 오류가 발생했습니다.");
+          setFeedErrorMessage("피드 조회 중 알 수 없는 오류가 발생했습니다.");
         }
       } finally {
         setIsLoading(false);
@@ -121,7 +122,7 @@ export default function HomePage() {
   useEffect(() => {
     const fetchPosts = async () => {
       setIsLoading(true);
-      setErrorMessage("");
+      setFeedErrorMessage("");
 
       try {
         const query = new URLSearchParams({
@@ -162,9 +163,9 @@ export default function HomePage() {
         setTotalPages(postsResult.totalPages);
       } catch (error) {
         if (error instanceof Error) {
-          setErrorMessage(error.message);
+          setFeedErrorMessage(error.message);
         } else {
-          setErrorMessage("피드 조회 중 알 수 없는 오류가 발생했습니다.");
+          setFeedErrorMessage("피드 조회 중 알 수 없는 오류가 발생했습니다.");
         }
       } finally {
         setIsLoading(false);
@@ -206,7 +207,7 @@ export default function HomePage() {
   const handleBulkSubscribe = async (subscribeAll: boolean) => {
     const accessToken = localStorage.getItem("accessToken");
     if (!accessToken) {
-      setErrorMessage("알림 설정은 로그인 후 사용할 수 있습니다.");
+      setSubscriptionNotice("알림 설정은 로그인 후 사용할 수 있습니다.");
       return;
     }
 
@@ -217,7 +218,7 @@ export default function HomePage() {
       : subscribedSourceIds;
 
     if (targetSourceIds.length === 0) {
-      setErrorMessage(
+      setSubscriptionNotice(
         subscribeAll
           ? "이미 전체 블로그 알림이 설정되어 있습니다."
           : "이미 전체 알림이 해제되어 있습니다.",
@@ -225,7 +226,7 @@ export default function HomePage() {
       return;
     }
 
-    setErrorMessage("");
+    setSubscriptionNotice("");
     setBulkSubscriptionAction(subscribeAll ? "subscribe" : "unsubscribe");
 
     try {
@@ -268,15 +269,23 @@ export default function HomePage() {
 
       const failedCount = targetSourceIds.length - successIds.length;
       if (failedCount > 0) {
-        setErrorMessage(
+        setSubscriptionNotice(
           `${failedCount}개 블로그는 처리에 실패했습니다. 잠시 후 다시 시도해 주세요.`,
+        );
+      } else {
+        setSubscriptionNotice(
+          subscribeAll
+            ? "전체 알림설정이 완료되었습니다."
+            : "전체 알림해제가 완료되었습니다.",
         );
       }
     } catch (error) {
       if (error instanceof Error) {
-        setErrorMessage(error.message);
+        setSubscriptionNotice(error.message);
       } else {
-        setErrorMessage("전체 알림 설정 변경 중 알 수 없는 오류가 발생했습니다.");
+        setSubscriptionNotice(
+          "전체 알림 설정 변경 중 알 수 없는 오류가 발생했습니다.",
+        );
       }
     } finally {
       setBulkSubscriptionAction(null);
@@ -286,11 +295,11 @@ export default function HomePage() {
   const handleToggleSubscribe = async (sourceId: number) => {
     const accessToken = localStorage.getItem("accessToken");
     if (!accessToken) {
-      setErrorMessage("알림받기는 로그인 후 사용할 수 있습니다.");
+      setSubscriptionNotice("알림받기는 로그인 후 사용할 수 있습니다.");
       return;
     }
 
-    setErrorMessage("");
+    setSubscriptionNotice("");
     setPendingSubscriptionSourceId(sourceId);
     const isSubscribed = subscribedSourceIds.includes(sourceId);
 
@@ -311,11 +320,14 @@ export default function HomePage() {
       setSubscribedSourceIds((prevIds) =>
         isSubscribed ? prevIds.filter((id) => id !== sourceId) : [...prevIds, sourceId],
       );
+      setSubscriptionNotice(
+        isSubscribed ? "알림이 해제되었습니다." : "알림이 설정되었습니다.",
+      );
     } catch (error) {
       if (error instanceof Error) {
-        setErrorMessage(error.message);
+        setSubscriptionNotice(error.message);
       } else {
-        setErrorMessage("알림 설정 변경 중 알 수 없는 오류가 발생했습니다.");
+        setSubscriptionNotice("알림 설정 변경 중 알 수 없는 오류가 발생했습니다.");
       }
     } finally {
       setPendingSubscriptionSourceId(null);
@@ -360,6 +372,9 @@ export default function HomePage() {
                 : "전체 알림해제"}
             </button>
           </div>
+          {subscriptionNotice && (
+            <p className="mt-2 text-xs text-zinc-600">{subscriptionNotice}</p>
+          )}
           <div className="mt-4">
             <div className="relative">
             <input
@@ -511,13 +526,13 @@ export default function HomePage() {
           </div>
         )}
 
-        {errorMessage && (
+        {feedErrorMessage && (
           <div className="rounded-2xl bg-red-50 p-6 text-sm text-red-700 shadow-sm">
-            {errorMessage}
+            {feedErrorMessage}
           </div>
         )}
 
-        {!isLoading && !errorMessage && (
+        {!isLoading && !feedErrorMessage && (
           <div className="grid gap-4 md:grid-cols-2">
             {posts.map((post) => (
               <article key={post.id} className="rounded-2xl bg-white p-5 shadow-sm">
@@ -580,7 +595,7 @@ export default function HomePage() {
             )}
           </div>
         )}
-        {!isLoading && !errorMessage && totalPages > 1 && (
+        {!isLoading && !feedErrorMessage && totalPages > 1 && (
           <div className="mt-6 flex items-center justify-center gap-2">
             <button
               type="button"
