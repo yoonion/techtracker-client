@@ -15,6 +15,9 @@ export default function SignupPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [agreedPrivacy, setAgreedPrivacy] = useState(false);
+  const [agreedTerms, setAgreedTerms] = useState(false);
+  const [agreedCopyrightNotice, setAgreedCopyrightNotice] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
@@ -26,6 +29,10 @@ export default function SignupPage() {
     setIsLoading(true);
 
     try {
+      if (!agreedPrivacy || !agreedTerms || !agreedCopyrightNotice) {
+        throw new Error("필수 동의 항목을 모두 체크해 주세요.");
+      }
+
       const response = await fetch("/api/auth/signup", {
         method: "POST",
         headers: {
@@ -48,6 +55,9 @@ export default function SignupPage() {
       setName("");
       setEmail("");
       setPassword("");
+      setAgreedPrivacy(false);
+      setAgreedTerms(false);
+      setAgreedCopyrightNotice(false);
       setTimeout(() => {
         router.push("/login");
       }, 1000);
@@ -113,6 +123,71 @@ export default function SignupPage() {
               className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none transition focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200"
             />
           </div>
+
+          <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-700">
+            <p className="font-semibold text-zinc-800">필수 동의</p>
+            <label className="mt-2 flex items-start gap-2">
+              <input
+                type="checkbox"
+                checked={agreedTerms}
+                onChange={(event) => setAgreedTerms(event.target.checked)}
+                className="mt-0.5"
+              />
+              <span>[필수] 서비스 이용약관에 동의합니다.</span>
+            </label>
+            <label className="mt-2 flex items-start gap-2">
+              <input
+                type="checkbox"
+                checked={agreedPrivacy}
+                onChange={(event) => setAgreedPrivacy(event.target.checked)}
+                className="mt-0.5"
+              />
+              <span>[필수] 개인정보 수집·이용에 동의합니다.</span>
+            </label>
+            <label className="mt-2 flex items-start gap-2">
+              <input
+                type="checkbox"
+                checked={agreedCopyrightNotice}
+                onChange={(event) => setAgreedCopyrightNotice(event.target.checked)}
+                className="mt-0.5"
+              />
+              <span>[필수] 외부 블로그 콘텐츠 저작권 고지를 확인했습니다.</span>
+            </label>
+          </div>
+
+          <details className="rounded-xl border border-zinc-200 bg-white p-3 text-xs text-zinc-700">
+            <summary className="cursor-pointer font-semibold text-zinc-800">
+              서비스 이용약관(요약)
+            </summary>
+            <ul className="mt-2 list-disc space-y-1 pl-4">
+              <li>본 서비스는 테크 블로그 글을 수집하여 목록/알림 기능을 제공합니다.</li>
+              <li>서비스 운영을 방해하거나 비정상적인 접근을 시도하면 이용이 제한될 수 있습니다.</li>
+              <li>서비스 내용은 예고 없이 변경될 수 있습니다.</li>
+            </ul>
+          </details>
+
+          <details className="rounded-xl border border-zinc-200 bg-white p-3 text-xs text-zinc-700">
+            <summary className="cursor-pointer font-semibold text-zinc-800">
+              개인정보 수집·이용 동의(요약)
+            </summary>
+            <ul className="mt-2 list-disc space-y-1 pl-4">
+              <li>수집 항목: 이름, 이메일, 비밀번호(암호화 저장), Discord 연동 식별자(연동 시)</li>
+              <li>이용 목적: 회원 식별, 로그인 인증, 계정 관리, 알림 기능 제공</li>
+              <li>보유 기간: 회원 탈퇴 시까지(관련 법령에 따라 보존이 필요한 경우 해당 기간)</li>
+              <li>동의 거부 시 회원가입 및 계정 기반 기능 이용이 제한됩니다.</li>
+            </ul>
+          </details>
+
+          <details className="rounded-xl border border-zinc-200 bg-white p-3 text-xs text-zinc-700">
+            <summary className="cursor-pointer font-semibold text-zinc-800">
+              외부 블로그 콘텐츠 저작권 고지
+            </summary>
+            <ul className="mt-2 list-disc space-y-1 pl-4">
+              <li>본 서비스는 외부 블로그의 글 제목/요약/링크를 제공합니다.</li>
+              <li>원문 콘텐츠의 저작권은 각 블로그 및 원저작권자에게 있습니다.</li>
+              <li>원문 이용은 해당 사이트의 이용약관 및 정책을 따릅니다.</li>
+            </ul>
+          </details>
 
           <button
             type="submit"
