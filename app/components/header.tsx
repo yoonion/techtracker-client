@@ -168,6 +168,12 @@ export default function Header() {
             <>
               {!isAdminRoute && (
                 <>
+                  <Link
+                    href="/mypage"
+                    className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
+                  >
+                    내정보
+                  </Link>
                   {inviteUrl ? (
                     <a
                       href={inviteUrl}
