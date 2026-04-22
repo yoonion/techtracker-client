@@ -17,7 +17,9 @@ export default function Header() {
   const [userName, setUserName] = useState<string | null>(null);
   const [discordStatus, setDiscordStatus] = useState<DiscordStatus | null>(null);
   const [isDiscordLoading, setIsDiscordLoading] = useState(false);
+  const [isTestDmLoading, setIsTestDmLoading] = useState(false);
   const isAdminRoute = pathname.startsWith("/admin");
+  const inviteUrl = process.env.NEXT_PUBLIC_DISCORD_INVITE_URL ?? "";
 
   useEffect(() => {
     const syncAuthState = () => {
@@ -119,6 +121,30 @@ export default function Header() {
     }
   };
 
+  const handleTestDm = async () => {
+    if (isTestDmLoading) {
+      return;
+    }
+
+    setIsTestDmLoading(true);
+    try {
+      const response = await fetchWithAuth("/api/auth/discord/test-dm", {
+        method: "POST",
+      });
+      const result = (await response.json()) as { message?: string };
+      if (!response.ok) {
+        throw new Error(result.message ?? "테스트 DM 전송에 실패했습니다.");
+      }
+      window.alert("테스트 DM을 보냈습니다. Discord DM을 확인해 주세요.");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "테스트 DM 전송 중 오류가 발생했습니다.";
+      window.alert(message);
+    } finally {
+      setIsTestDmLoading(false);
+    }
+  };
+
   return (
     <header className="border-b border-zinc-200 bg-white">
       <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
@@ -142,10 +168,34 @@ export default function Header() {
             <>
               {!isAdminRoute && (
                 <>
-                  {discordStatus?.connected ? (
-                    <span className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-medium text-indigo-700">
-                      Discord 연동됨 {discordStatus.discordUsername ? `(${discordStatus.discordUsername})` : ""}
+                  {inviteUrl ? (
+                    <a
+                      href={inviteUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-lg border border-sky-200 bg-white px-4 py-2 text-sm font-medium text-sky-700 transition hover:bg-sky-50"
+                    >
+                      알림 서버 참여
+                    </a>
+                  ) : (
+                    <span className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-500">
+                      서버 초대 링크 설정 필요
                     </span>
+                  )}
+                  {discordStatus?.connected ? (
+                    <>
+                      <span className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-medium text-indigo-700">
+                        Discord 연동됨 {discordStatus.discordUsername ? `(${discordStatus.discordUsername})` : ""}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleTestDm}
+                        disabled={isTestDmLoading}
+                        className="rounded-lg border border-emerald-200 bg-white px-4 py-2 text-sm font-medium text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {isTestDmLoading ? "테스트 전송 중..." : "DM 테스트"}
+                      </button>
+                    </>
                   ) : (
                     <button
                       type="button"
