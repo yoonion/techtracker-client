@@ -57,12 +57,15 @@ export default function HomePage() {
   >(null);
   const [isLoading, setIsLoading] = useState(false);
   const [feedErrorMessage, setFeedErrorMessage] = useState("");
-  const [subscriptionNotice, setSubscriptionNotice] = useState("");
   const [hasAccessToken, setHasAccessToken] = useState(false);
   const [discordStatus, setDiscordStatus] = useState<DiscordStatus | null>(null);
   const [isDiscordLoading, setIsDiscordLoading] = useState(false);
   const [isTestDmLoading, setIsTestDmLoading] = useState(false);
-  const [discordNotice, setDiscordNotice] = useState("");
+  const [modalMessage, setModalMessage] = useState<string | null>(null);
+
+  const openNoticeModal = (message: string) => {
+    setModalMessage(message);
+  };
 
   useEffect(() => {
     const syncAuthState = () => {
@@ -286,11 +289,11 @@ export default function HomePage() {
   const handleBulkSubscribe = async (subscribeAll: boolean) => {
     const accessToken = localStorage.getItem("accessToken");
     if (!accessToken) {
-      setSubscriptionNotice("알림 설정은 로그인 후 사용할 수 있습니다.");
+      openNoticeModal("알림 설정은 로그인 후 사용할 수 있습니다.");
       return;
     }
     if (subscribeAll && !discordStatus?.connected) {
-      setSubscriptionNotice(
+      openNoticeModal(
         "알림 구독을 하려면 Discord 연동이 필요합니다. 먼저 Discord 연동을 진행해 주세요.",
       );
       return;
@@ -303,15 +306,13 @@ export default function HomePage() {
       : subscribedSourceIds;
 
     if (targetSourceIds.length === 0) {
-      setSubscriptionNotice(
+      openNoticeModal(
         subscribeAll
           ? "이미 전체 블로그 알림이 설정되어 있습니다."
           : "이미 전체 알림이 해제되어 있습니다.",
       );
       return;
     }
-
-    setSubscriptionNotice("");
     setBulkSubscriptionAction(subscribeAll ? "subscribe" : "unsubscribe");
 
     try {
@@ -354,11 +355,11 @@ export default function HomePage() {
 
       const failedCount = targetSourceIds.length - successIds.length;
       if (failedCount > 0) {
-        setSubscriptionNotice(
+        openNoticeModal(
           `${failedCount}개 블로그는 처리에 실패했습니다. 잠시 후 다시 시도해 주세요.`,
         );
       } else {
-        setSubscriptionNotice(
+        openNoticeModal(
           subscribeAll
             ? "전체 알림설정이 완료되었습니다."
             : "전체 알림해제가 완료되었습니다.",
@@ -366,9 +367,9 @@ export default function HomePage() {
       }
     } catch (error) {
       if (error instanceof Error) {
-        setSubscriptionNotice(error.message);
+        openNoticeModal(error.message);
       } else {
-        setSubscriptionNotice(
+        openNoticeModal(
           "전체 알림 설정 변경 중 알 수 없는 오류가 발생했습니다.",
         );
       }
@@ -380,18 +381,16 @@ export default function HomePage() {
   const handleToggleSubscribe = async (sourceId: number) => {
     const accessToken = localStorage.getItem("accessToken");
     if (!accessToken) {
-      setSubscriptionNotice("알림받기는 로그인 후 사용할 수 있습니다.");
+      openNoticeModal("알림받기는 로그인 후 사용할 수 있습니다.");
       return;
     }
     const isSubscribed = subscribedSourceIds.includes(sourceId);
     if (!isSubscribed && !discordStatus?.connected) {
-      setSubscriptionNotice(
+      openNoticeModal(
         "알림 구독을 하려면 Discord 연동이 필요합니다. 먼저 Discord 연동을 진행해 주세요.",
       );
       return;
     }
-
-    setSubscriptionNotice("");
     setPendingSubscriptionSourceId(sourceId);
 
     try {
@@ -411,14 +410,14 @@ export default function HomePage() {
       setSubscribedSourceIds((prevIds) =>
         isSubscribed ? prevIds.filter((id) => id !== sourceId) : [...prevIds, sourceId],
       );
-      setSubscriptionNotice(
+      openNoticeModal(
         isSubscribed ? "알림이 해제되었습니다." : "알림이 설정되었습니다.",
       );
     } catch (error) {
       if (error instanceof Error) {
-        setSubscriptionNotice(error.message);
+        openNoticeModal(error.message);
       } else {
-        setSubscriptionNotice("알림 설정 변경 중 알 수 없는 오류가 발생했습니다.");
+        openNoticeModal("알림 설정 변경 중 알 수 없는 오류가 발생했습니다.");
       }
     } finally {
       setPendingSubscriptionSourceId(null);
@@ -430,7 +429,6 @@ export default function HomePage() {
       return;
     }
 
-    setDiscordNotice("");
     setIsDiscordLoading(true);
     try {
       const response = await fetchWithAuth("/api/auth/discord/connect", {
@@ -445,7 +443,7 @@ export default function HomePage() {
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Discord 연동 중 오류가 발생했습니다.";
-      setDiscordNotice(message);
+      openNoticeModal(message);
       setIsDiscordLoading(false);
     }
   };
@@ -455,7 +453,6 @@ export default function HomePage() {
       return;
     }
 
-    setDiscordNotice("");
     setIsTestDmLoading(true);
     try {
       const response = await fetchWithAuth("/api/auth/discord/test-dm", {
@@ -465,11 +462,11 @@ export default function HomePage() {
       if (!response.ok) {
         throw new Error(result.message ?? "테스트 DM 전송에 실패했습니다.");
       }
-      setDiscordNotice("테스트 DM을 보냈습니다. Discord DM을 확인해 주세요.");
+      openNoticeModal("테스트 DM을 보냈습니다. Discord DM을 확인해 주세요.");
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "테스트 DM 전송 중 오류가 발생했습니다.";
-      setDiscordNotice(message);
+      openNoticeModal(message);
     } finally {
       setIsTestDmLoading(false);
     }
@@ -566,33 +563,7 @@ export default function HomePage() {
                 이 필요합니다.
               </p>
             )}
-            {discordNotice && <p className="mt-2 text-xs text-zinc-600">{discordNotice}</p>}
           </div>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => handleBulkSubscribe(true)}
-              disabled={bulkSubscriptionAction !== null || pendingSubscriptionSourceId !== null}
-              className="rounded-lg border border-sky-200 bg-white px-3 py-2 text-xs font-semibold text-sky-700 transition hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {bulkSubscriptionAction === "subscribe"
-                ? "전체 알림설정 중..."
-                : "전체 알림설정"}
-            </button>
-            <button
-              type="button"
-              onClick={() => handleBulkSubscribe(false)}
-              disabled={bulkSubscriptionAction !== null || pendingSubscriptionSourceId !== null}
-              className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {bulkSubscriptionAction === "unsubscribe"
-                ? "전체 알림해제 중..."
-                : "전체 알림해제"}
-            </button>
-          </div>
-          {subscriptionNotice && (
-            <p className="mt-2 text-xs text-zinc-600">{subscriptionNotice}</p>
-          )}
           <div className="mt-4">
             <div className="relative">
             <input
@@ -617,6 +588,28 @@ export default function HomePage() {
                 </svg>
               </span>
             </div>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => handleBulkSubscribe(true)}
+              disabled={bulkSubscriptionAction !== null || pendingSubscriptionSourceId !== null}
+              className="rounded-lg border border-sky-200 bg-white px-3 py-2 text-xs font-semibold text-sky-700 transition hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {bulkSubscriptionAction === "subscribe"
+                ? "블로그 전체 알림 받는 중..."
+                : "블로그 전체 알림 받기"}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleBulkSubscribe(false)}
+              disabled={bulkSubscriptionAction !== null || pendingSubscriptionSourceId !== null}
+              className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {bulkSubscriptionAction === "unsubscribe"
+                ? "블로그 전체 알림 해제 중..."
+                : "블로그 전체 알림 해제"}
+            </button>
           </div>
           <div
             className={`mt-5 overflow-hidden transition-all duration-300 ease-in-out ${
@@ -839,6 +832,22 @@ export default function HomePage() {
           </div>
         )}
       </section>
+      {modalMessage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-4">
+          <div className="w-full max-w-sm rounded-xl bg-white p-5 shadow-xl">
+            <p className="text-sm text-zinc-800">{modalMessage}</p>
+            <div className="mt-4 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setModalMessage(null)}
+                className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
