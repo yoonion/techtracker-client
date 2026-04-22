@@ -11,6 +11,7 @@ export default function AdminLayout({
 }>) {
   const router = useRouter();
   const pathname = usePathname();
+  const isBlogsRoute = pathname.startsWith("/admin/blogs");
 
   useEffect(() => {
     const accessToken = localStorage.getItem("accessToken");
@@ -50,7 +51,7 @@ export default function AdminLayout({
           <Link
             href="/admin/blogs"
             className={`block rounded-lg px-3 py-2 text-sm font-medium transition ${
-              pathname === "/admin/blogs"
+              isBlogsRoute
                 ? "bg-zinc-900 text-white"
                 : "text-zinc-700 hover:bg-zinc-100"
             }`}

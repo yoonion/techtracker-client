@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { fetchWithAuth } from "../../../lib/auth-client";
 
@@ -253,7 +254,12 @@ export default function AdminBlogsPage() {
                       ) : (
                         <span className="inline-block h-4 w-4 rounded-sm bg-zinc-200" />
                       )}
-                      <span>{source.name && source.name.trim() ? source.name : "-"}</span>
+                      <Link
+                        href={`/admin/blogs/${source.id}`}
+                        className="font-medium text-zinc-900 underline-offset-2 hover:underline"
+                      >
+                        {source.name && source.name.trim() ? source.name : "(이름 없음)"}
+                      </Link>
                     </div>
                   </td>
                   <td className="break-all px-4 py-3 text-zinc-900">{source.url}</td>
