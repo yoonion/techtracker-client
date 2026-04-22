@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { fetchWithAuth } from "../lib/auth-client";
 
@@ -32,7 +33,13 @@ type FeedPostsResponse = {
   totalPages: number;
 };
 
+type DiscordStatus = {
+  connected: boolean;
+  discordUsername: string | null;
+};
+
 export default function HomePage() {
+  const inviteUrl = process.env.NEXT_PUBLIC_DISCORD_INVITE_URL ?? "";
   const pageSize = 20;
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [sources, setSources] = useState<BlogSource[]>([]);
@@ -51,6 +58,75 @@ export default function HomePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [feedErrorMessage, setFeedErrorMessage] = useState("");
   const [subscriptionNotice, setSubscriptionNotice] = useState("");
+  const [hasAccessToken, setHasAccessToken] = useState(false);
+  const [discordStatus, setDiscordStatus] = useState<DiscordStatus | null>(null);
+  const [isDiscordLoading, setIsDiscordLoading] = useState(false);
+  const [isTestDmLoading, setIsTestDmLoading] = useState(false);
+  const [discordNotice, setDiscordNotice] = useState("");
+
+  useEffect(() => {
+    const syncAuthState = () => {
+      const accessToken = localStorage.getItem("accessToken");
+      const isLoggedIn = Boolean(accessToken);
+      setHasAccessToken(isLoggedIn);
+
+      if (!isLoggedIn) {
+        setDiscordStatus(null);
+      }
+    };
+
+    syncAuthState();
+    window.addEventListener("storage", syncAuthState);
+
+    return () => {
+      window.removeEventListener("storage", syncAuthState);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!hasAccessToken) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadDiscordStatus = async () => {
+      try {
+        const response = await fetchWithAuth("/api/auth/discord/status", {
+          method: "GET",
+        });
+
+        const result = (await response.json()) as {
+          connected?: boolean;
+          discordUsername?: string | null;
+          message?: string;
+        };
+
+        if (!response.ok) {
+          throw new Error(result.message ?? "Discord 상태 조회 실패");
+        }
+
+        if (cancelled) {
+          return;
+        }
+
+        setDiscordStatus({
+          connected: Boolean(result.connected),
+          discordUsername: result.discordUsername ?? null,
+        });
+      } catch {
+        if (!cancelled) {
+          setDiscordStatus(null);
+        }
+      }
+    };
+
+    void loadDiscordStatus();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasAccessToken]);
 
   useEffect(() => {
     const fetchSourcesAndSubscriptions = async () => {
@@ -337,6 +413,56 @@ export default function HomePage() {
     }
   };
 
+  const handleDiscordConnect = async () => {
+    if (isDiscordLoading || !hasAccessToken) {
+      return;
+    }
+
+    setDiscordNotice("");
+    setIsDiscordLoading(true);
+    try {
+      const response = await fetchWithAuth("/api/auth/discord/connect", {
+        method: "GET",
+      });
+      const result = (await response.json()) as { url?: string; message?: string };
+      if (!response.ok || typeof result.url !== "string") {
+        throw new Error(result.message ?? "Discord 연동을 시작할 수 없습니다.");
+      }
+
+      window.location.href = result.url;
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Discord 연동 중 오류가 발생했습니다.";
+      setDiscordNotice(message);
+      setIsDiscordLoading(false);
+    }
+  };
+
+  const handleTestDm = async () => {
+    if (isTestDmLoading || !hasAccessToken) {
+      return;
+    }
+
+    setDiscordNotice("");
+    setIsTestDmLoading(true);
+    try {
+      const response = await fetchWithAuth("/api/auth/discord/test-dm", {
+        method: "POST",
+      });
+      const result = (await response.json()) as { message?: string };
+      if (!response.ok) {
+        throw new Error(result.message ?? "테스트 DM 전송에 실패했습니다.");
+      }
+      setDiscordNotice("테스트 DM을 보냈습니다. Discord DM을 확인해 주세요.");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "테스트 DM 전송 중 오류가 발생했습니다.";
+      setDiscordNotice(message);
+    } finally {
+      setIsTestDmLoading(false);
+    }
+  };
+
   return (
     <main className="px-4 py-10 sm:px-6">
       <section className="mx-auto max-w-6xl">
@@ -355,6 +481,80 @@ export default function HomePage() {
             <span className="rounded-full bg-emerald-100 px-2.5 py-1 font-semibold text-emerald-800">
               구독중 블로그 총 {subscribedSourcesCount}개
             </span>
+          </div>
+          <div className="mt-3 rounded-xl border border-zinc-200 bg-zinc-50 p-3">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-semibold leading-5 text-zinc-700">
+                Discord 알림 설정
+              </span>
+              <div className="group relative">
+                <button
+                  type="button"
+                  className="relative inline-flex h-5 w-5 items-center justify-center rounded-full border border-zinc-300 bg-white text-[11px] font-bold leading-none text-zinc-600"
+                  aria-label="Discord 알림 설정 안내"
+                >
+                  ?
+                </button>
+                <div className="pointer-events-none invisible absolute left-0 top-full z-10 mt-2 w-72 rounded-lg border border-zinc-200 bg-white p-2 text-[11px] leading-relaxed text-zinc-700 shadow-md opacity-0 transition group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+                  Discord 연동 후 알림 서버에 참여해야 새 글 알림을 개인 DM으로 받을 수
+                  있습니다.
+                </div>
+              </div>
+            </div>
+            {hasAccessToken ? (
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                {inviteUrl ? (
+                  <a
+                    href={inviteUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-lg border border-sky-200 bg-white px-3 py-2 text-xs font-semibold text-sky-700 transition hover:bg-sky-50"
+                  >
+                    알림 서버 참여
+                  </a>
+                ) : (
+                  <span className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-500">
+                    서버 초대 링크 설정 필요
+                  </span>
+                )}
+                {discordStatus?.connected ? (
+                  <>
+                    <span className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-medium text-indigo-700">
+                      Discord 연동됨
+                      {discordStatus.discordUsername
+                        ? ` (${discordStatus.discordUsername})`
+                        : ""}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleTestDm}
+                      disabled={isTestDmLoading}
+                      className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isTestDmLoading ? "테스트 전송 중..." : "DM 테스트"}
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleDiscordConnect}
+                    disabled={isDiscordLoading}
+                    className="rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isDiscordLoading ? "연동 준비 중..." : "Discord 연동"}
+                  </button>
+                )}
+              </div>
+            ) : (
+              <p className="mt-2 text-xs text-zinc-600">
+                Discord 알림을 사용하려면{" "}
+                <Link href="/login" className="font-semibold text-sky-700 hover:underline">
+                  로그인
+                </Link>
+                이 필요합니다.
+              </p>
+            )}
+            {discordNotice && <p className="mt-2 text-xs text-zinc-600">{discordNotice}</p>}
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <button
