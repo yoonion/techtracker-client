@@ -184,6 +184,9 @@ export default function HomePage() {
     0,
   );
   const activeSourcesCount = sources.filter((source) => source.isActive !== false).length;
+  const subscribedSourcesCount = subscribedSourceIds.filter((sourceId) =>
+    sources.some((source) => source.id === sourceId),
+  ).length;
   const normalizedSourceSearchQuery = sourceSearchQuery.trim().toLowerCase();
   const searchedSources =
     normalizedSourceSearchQuery.length > 0
@@ -348,6 +351,9 @@ export default function HomePage() {
             </span>
             <span className="rounded-full bg-sky-100 px-2.5 py-1 font-semibold text-sky-800">
               수집중 블로그 총 {activeSourcesCount}개
+            </span>
+            <span className="rounded-full bg-emerald-100 px-2.5 py-1 font-semibold text-emerald-800">
+              구독중 블로그 총 {subscribedSourcesCount}개
             </span>
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2">
