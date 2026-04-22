@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { fetchWithAuth } from "../../lib/auth-client";
 
 type Member = {
   id: number;
@@ -38,16 +39,8 @@ export default function AdminPage() {
       setErrorMessage("");
 
       try {
-        const accessToken = localStorage.getItem("accessToken");
-        if (!accessToken) {
-          throw new Error("로그인이 필요합니다.");
-        }
-
-        const response = await fetch("/api/admin/users", {
+        const response = await fetchWithAuth("/api/admin/users", {
           cache: "no-store",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
         });
         const result: Member[] | { message?: string } = await response.json();
 

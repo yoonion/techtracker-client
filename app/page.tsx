@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { fetchWithAuth } from "../lib/auth-client";
 
 type BlogSource = {
   id: number;
@@ -57,11 +58,8 @@ export default function HomePage() {
         const [sourcesResponse, subscriptionsResponse] = await Promise.all([
           fetch("/api/blog-sources", { cache: "no-store" }),
           accessToken
-            ? fetch("/api/blog-subscriptions", {
+            ? fetchWithAuth("/api/blog-subscriptions", {
                 method: "GET",
-                headers: {
-                  Authorization: `Bearer ${accessToken}`,
-                },
                 cache: "no-store",
               })
             : Promise.resolve(null),
@@ -213,11 +211,8 @@ export default function HomePage() {
     const isSubscribed = subscribedSourceIds.includes(sourceId);
 
     try {
-      const response = await fetch(`/api/blog-subscriptions/${sourceId}`, {
+      const response = await fetchWithAuth(`/api/blog-subscriptions/${sourceId}`, {
         method: isSubscribed ? "DELETE" : "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
       });
 
       const result = (await response.json()) as { message?: string };

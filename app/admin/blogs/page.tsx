@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import { fetchWithAuth } from "../../../lib/auth-client";
 
 type BlogSource = {
   id: number;
@@ -28,16 +29,8 @@ export default function AdminBlogsPage() {
     setErrorMessage("");
 
     try {
-      const accessToken = localStorage.getItem("accessToken");
-      if (!accessToken) {
-        throw new Error("로그인이 필요합니다.");
-      }
-
-      const response = await fetch("/api/admin/blog-sources", {
+      const response = await fetchWithAuth("/api/admin/blog-sources", {
         cache: "no-store",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
       });
       const result: BlogSource[] | { message?: string } = await response.json();
 
@@ -73,16 +66,10 @@ export default function AdminBlogsPage() {
     setSuccessMessage("");
 
     try {
-      const accessToken = localStorage.getItem("accessToken");
-      if (!accessToken) {
-        throw new Error("로그인이 필요합니다.");
-      }
-
-      const response = await fetch("/api/admin/blog-sources", {
+      const response = await fetchWithAuth("/api/admin/blog-sources", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({ name, url }),
       });
@@ -116,16 +103,10 @@ export default function AdminBlogsPage() {
     setSuccessMessage("");
 
     try {
-      const accessToken = localStorage.getItem("accessToken");
-      if (!accessToken) {
-        throw new Error("로그인이 필요합니다.");
-      }
-
-      const response = await fetch(`/api/admin/blog-sources/${source.id}/active`, {
+      const response = await fetchWithAuth(`/api/admin/blog-sources/${source.id}/active`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({ isActive: !source.isActive }),
       });
@@ -166,16 +147,8 @@ export default function AdminBlogsPage() {
     setSuccessMessage("");
 
     try {
-      const accessToken = localStorage.getItem("accessToken");
-      if (!accessToken) {
-        throw new Error("로그인이 필요합니다.");
-      }
-
-      const response = await fetch(`/api/admin/blog-sources/${source.id}`, {
+      const response = await fetchWithAuth(`/api/admin/blog-sources/${source.id}`, {
         method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
       });
 
       const result: { message?: string } = await response.json();
