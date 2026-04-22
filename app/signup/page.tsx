@@ -21,6 +21,7 @@ export default function SignupPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const isAllAgreed = agreedTerms && agreedPrivacy && agreedCopyrightNotice;
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -126,6 +127,20 @@ export default function SignupPage() {
 
           <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-700">
             <p className="font-semibold text-zinc-800">필수 동의</p>
+            <label className="mt-2 flex items-start gap-2 border-b border-zinc-200 pb-2">
+              <input
+                type="checkbox"
+                checked={isAllAgreed}
+                onChange={(event) => {
+                  const checked = event.target.checked;
+                  setAgreedTerms(checked);
+                  setAgreedPrivacy(checked);
+                  setAgreedCopyrightNotice(checked);
+                }}
+                className="mt-0.5"
+              />
+              <span className="font-semibold text-zinc-800">[전체 동의] 필수 항목 모두 동의</span>
+            </label>
             <label className="mt-2 flex items-start gap-2">
               <input
                 type="checkbox"
