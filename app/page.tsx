@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { fetchWithAuth } from "../lib/auth-client";
 
@@ -39,6 +40,7 @@ type DiscordStatus = {
 };
 
 export default function HomePage() {
+  const router = useRouter();
   const inviteUrl = process.env.NEXT_PUBLIC_DISCORD_INVITE_URL ?? "";
   const pageSize = 20;
   const [posts, setPosts] = useState<FeedPost[]>([]);
@@ -62,9 +64,11 @@ export default function HomePage() {
   const [isDiscordLoading, setIsDiscordLoading] = useState(false);
   const [isTestDmLoading, setIsTestDmLoading] = useState(false);
   const [modalMessage, setModalMessage] = useState<string | null>(null);
+  const [modalRedirectToLogin, setModalRedirectToLogin] = useState(false);
 
-  const openNoticeModal = (message: string) => {
+  const openNoticeModal = (message: string, redirectToLogin = false) => {
     setModalMessage(message);
+    setModalRedirectToLogin(redirectToLogin);
   };
 
   useEffect(() => {
@@ -289,7 +293,7 @@ export default function HomePage() {
   const handleBulkSubscribe = async (subscribeAll: boolean) => {
     const accessToken = localStorage.getItem("accessToken");
     if (!accessToken) {
-      openNoticeModal("알림 설정은 로그인 후 사용할 수 있습니다.");
+      openNoticeModal("알림 설정은 로그인 후 사용할 수 있습니다.", true);
       return;
     }
     if (subscribeAll && !discordStatus?.connected) {
@@ -367,7 +371,10 @@ export default function HomePage() {
       }
     } catch (error) {
       if (error instanceof Error) {
-        openNoticeModal(error.message);
+        openNoticeModal(
+          error.message,
+          error.message.includes("로그인") || error.message.includes("세션"),
+        );
       } else {
         openNoticeModal(
           "전체 알림 설정 변경 중 알 수 없는 오류가 발생했습니다.",
@@ -381,7 +388,7 @@ export default function HomePage() {
   const handleToggleSubscribe = async (sourceId: number) => {
     const accessToken = localStorage.getItem("accessToken");
     if (!accessToken) {
-      openNoticeModal("알림받기는 로그인 후 사용할 수 있습니다.");
+      openNoticeModal("알림받기는 로그인 후 사용할 수 있습니다.", true);
       return;
     }
     const isSubscribed = subscribedSourceIds.includes(sourceId);
@@ -415,7 +422,10 @@ export default function HomePage() {
       );
     } catch (error) {
       if (error instanceof Error) {
-        openNoticeModal(error.message);
+        openNoticeModal(
+          error.message,
+          error.message.includes("로그인") || error.message.includes("세션"),
+        );
       } else {
         openNoticeModal("알림 설정 변경 중 알 수 없는 오류가 발생했습니다.");
       }
@@ -839,7 +849,13 @@ export default function HomePage() {
             <div className="mt-4 flex justify-end">
               <button
                 type="button"
-                onClick={() => setModalMessage(null)}
+                onClick={() => {
+                  setModalMessage(null);
+                  if (modalRedirectToLogin) {
+                    router.push("/login");
+                  }
+                  setModalRedirectToLogin(false);
+                }}
                 className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
               >
                 확인
